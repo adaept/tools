@@ -71,7 +71,8 @@ interface SVGOptionsWithoutPlugin extends SVGOCommonOptions {
 	// Keep shapes: doesn't run plugins that mess with shapes
 	keepShapes?: boolean;
 
-	// Cleanup IDs, value is prefix to add to IDs, default is 'svg-'. False to disable it
+	// Cleanup IDs, value is prefix to add to IDs, default is 'svgID'. False to disable it
+	// Do not use dashes in ID, it breaks some SVG animations
 	cleanupIDs?: string | false;
 }
 
@@ -84,6 +85,9 @@ export async function runSVGO(
 	svg: SVG,
 	options: SVGOOptions = {}
 ): Promise<void> {
+	// Code
+	const code = svg.toString();
+
 	// Options
 	const multipass = options.multipass !== false;
 
@@ -92,8 +96,18 @@ export async function runSVGO(
 	if (options.plugins) {
 		plugins = options.plugins;
 	} else {
+		// Check for animations: convertShapeToPath and removeHiddenElems plugins currently might ruin animations
+		let keepShapes = options.keepShapes;
+		if (
+			keepShapes === void 0 &&
+			(code.indexOf('<animate') !== -1 || code.indexOf('<set') !== -1)
+		) {
+			// Do not check animations: just assume they might break
+			keepShapes = true;
+		}
+
 		plugins = defaultSVGOPlugins.concat(
-			options.keepShapes ? [] : shapeModifiyingSVGOPlugins,
+			keepShapes ? [] : shapeModifiyingSVGOPlugins,
 			options.cleanupIDs !== false
 				? [
 						{
@@ -102,7 +116,7 @@ export async function runSVGO(
 								prefix:
 									typeof options.cleanupIDs === 'string'
 										? options.cleanupIDs
-										: 'svg-',
+										: 'svgID',
 							},
 						},
 				  ]
@@ -117,7 +131,7 @@ export async function runSVGO(
 	};
 
 	// Load data (changing type because SVGO types do not include error ?????)
-	const result = optimize(svg.toString(), pluginOptions) as unknown as Record<
+	const result = optimize(code, pluginOptions) as unknown as Record<
 		string,
 		string
 	>;
