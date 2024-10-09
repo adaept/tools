@@ -72,7 +72,7 @@ describe('Working with aliases', () => {
 		expect(iconSet.resolve('alias4')).toEqual(expectedBar);
 		expect(iconSet.resolve('alias5')).toEqual(expectedBar);
 		expect(iconSet.resolve('alias6')).toEqual(expectedBar);
-		expect(iconSet.resolve('alias7')).toBeNull(); // Recursion is too high
+		expect(iconSet.resolve('alias7')).toEqual(expectedBar);
 
 		const expectedBaz: ResolvedIconifyIcon = {
 			body: '<g id="baz" />',
@@ -139,33 +139,34 @@ describe('Working with aliases', () => {
 			body: '<g />',
 		};
 
+		// Test both resolve() from IconSet and getIconData() from Utils to make sure both generate identical results
 		expect(iconSet.resolve('test')).toEqual(expectedIcon);
-		expect(getIconData(iconSetData, 'test', false)).toEqual(expectedIcon);
+		expect(getIconData(iconSetData, 'test')).toEqual(expectedIcon);
 
 		expect(iconSet.resolve('alias1')).toEqual(expectedIcon);
-		expect(getIconData(iconSetData, 'alias1', false)).toEqual(expectedIcon);
+		expect(getIconData(iconSetData, 'alias1')).toEqual(expectedIcon);
 
 		expect(iconSet.resolve('alias2')).toEqual(expectedIcon);
-		expect(getIconData(iconSetData, 'alias2', false)).toEqual(expectedIcon);
+		expect(getIconData(iconSetData, 'alias2')).toEqual(expectedIcon);
 
 		expect(iconSet.resolve('alias3')).toEqual(expectedIcon);
-		expect(getIconData(iconSetData, 'alias3', false)).toEqual(expectedIcon);
+		expect(getIconData(iconSetData, 'alias3')).toEqual(expectedIcon);
 
 		expect(iconSet.resolve('alias4')).toEqual(expectedIcon);
-		expect(getIconData(iconSetData, 'alias4', false)).toEqual(expectedIcon);
+		expect(getIconData(iconSetData, 'alias4')).toEqual(expectedIcon);
 
 		expect(iconSet.resolve('alias5')).toEqual(expectedIcon);
-		expect(getIconData(iconSetData, 'alias5', false)).toEqual(expectedIcon);
+		expect(getIconData(iconSetData, 'alias5')).toEqual(expectedIcon);
 
 		expect(iconSet.resolve('alias6')).toEqual(expectedIcon);
-		expect(getIconData(iconSetData, 'alias6', false)).toEqual(expectedIcon);
+		expect(getIconData(iconSetData, 'alias6')).toEqual(expectedIcon);
 
-		// Recursion is too high
-		expect(iconSet.resolve('alias7')).toBeNull();
-		expect(getIconData(iconSetData, 'alias7', false)).toBeNull();
+		// Should no longer fail: recursion can be unlimited because of new tree handling algorythm
+		expect(iconSet.resolve('alias7')).toEqual(expectedIcon);
+		expect(getIconData(iconSetData, 'alias7')).toEqual(expectedIcon);
 
-		expect(iconSet.resolve('alias8')).toBeNull();
-		expect(getIconData(iconSetData, 'alias8', false)).toBeNull();
+		expect(iconSet.resolve('alias8')).toEqual(expectedIcon);
+		expect(getIconData(iconSetData, 'alias8')).toEqual(expectedIcon);
 	});
 
 	test('Hidden icons', () => {
@@ -221,8 +222,10 @@ describe('Working with aliases', () => {
 	});
 
 	test('Rename icon, test characters and categories', () => {
+		const lastModified = 12345;
 		const iconSetData: IconifyJSON = {
 			prefix: 'foo',
+			lastModified,
 			icons: {
 				bar: {
 					body: '<g id="bar" />',
@@ -274,6 +277,7 @@ describe('Working with aliases', () => {
 		expect(iconSet.exists('baz')).toBe(true);
 		expect(iconSet.exists('variation1')).toBe(true);
 		expect(iconSet.exists('foo')).toBe(false);
+		expect(iconSet.lastModified).toBe(lastModified);
 
 		// Rename 'baz' to 'foo'
 		expect(iconSet.rename('baz', 'foo')).toBe(true);
@@ -283,6 +287,7 @@ describe('Working with aliases', () => {
 		expect(iconSet.exists('baz')).toBe(false);
 		expect(iconSet.exists('variation1')).toBe(true);
 		expect(iconSet.exists('foo')).toBe(true);
+		expect(iconSet.lastModified).not.toBe(lastModified);
 
 		const expectedBaz: ResolvedIconifyIcon = {
 			body: '<g id="baz" />',
@@ -299,6 +304,7 @@ describe('Working with aliases', () => {
 		// Export
 		const iconSetExportedData: IconifyJSON = {
 			prefix: 'foo',
+			lastModified: iconSet.lastModified,
 			icons: {
 				bar: {
 					body: '<g id="bar" />',
@@ -339,5 +345,69 @@ describe('Working with aliases', () => {
 		// Export with validation: 'invalid' alias should not be there
 		delete iconSetExportedData.aliases?.['invalid'];
 		expect(iconSet.export()).toEqual(iconSetExportedData);
+	});
+
+	test('Aliases with categories', () => {
+		const lastModified = 12345;
+		const iconSetData: IconifyJSON = {
+			prefix: 'foo',
+			lastModified,
+			icons: {
+				bar: {
+					body: '<g id="bar" />',
+				},
+				baz: {
+					body: '<g id="baz" />',
+				},
+			},
+			aliases: {
+				// Alias: no modifications
+				alias1: {
+					parent: 'bar',
+				},
+				// Variation: has transformation
+				variation1: {
+					parent: 'baz',
+					hFlip: true,
+				},
+			},
+			categories: {
+				Bar: ['bar'],
+				Baz: ['baz'],
+				// Ignored: aliases cannot have categories
+				Other: ['alias1', 'variation1'],
+			},
+		};
+		const iconSet = new IconSet(iconSetData);
+
+		// Export
+		const iconSetExportedData: IconifyJSON = {
+			prefix: 'foo',
+			lastModified,
+			icons: {
+				bar: {
+					body: '<g id="bar" />',
+				},
+				baz: {
+					body: '<g id="baz" />',
+				},
+			},
+			aliases: {
+				// Alias: no modifications
+				alias1: {
+					parent: 'bar',
+				},
+				// Variation: has transformation
+				variation1: {
+					parent: 'baz',
+					hFlip: true,
+				},
+			},
+			categories: {
+				Bar: ['bar'],
+				Baz: ['baz'],
+			},
+		};
+		expect(iconSet.export(false)).toEqual(iconSetExportedData);
 	});
 });

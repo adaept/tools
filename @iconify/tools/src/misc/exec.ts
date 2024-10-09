@@ -1,3 +1,4 @@
+import { resolve } from 'pathe';
 import { exec } from 'child_process';
 import type { ExecOptions } from 'child_process';
 
@@ -14,22 +15,22 @@ export function execAsync(
 	options?: ExecOptions
 ): Promise<ExecResult> {
 	return new Promise((fulfill, reject) => {
-		exec(
-			cmd,
-			{
+		if (typeof options?.cwd === 'string') {
+			// Relative directories sometimes do not work, so resolve directory first
+			options = {
 				...options,
-				encoding: 'utf8',
-			},
-			(error, stdout, stderr) => {
-				if (error) {
-					reject(error);
-				} else {
-					fulfill({
-						stdout,
-						stderr,
-					});
-				}
+				cwd: resolve(options.cwd),
+			};
+		}
+		exec(cmd, options, (error, stdout, stderr) => {
+			if (error) {
+				reject(error);
+			} else {
+				fulfill({
+					stdout,
+					stderr,
+				} as ExecResult);
 			}
-		);
+		});
 	});
 }

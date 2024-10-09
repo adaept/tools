@@ -1,5 +1,5 @@
 import { promises as fs } from 'fs';
-import { iconDefaults } from '@iconify/utils/lib/icon';
+import { defaultIconDimensions } from '@iconify/utils/lib/icon/defaults';
 import type { IconSet } from '../icon-set';
 import type { ExportTargetOptions } from './helpers/prepare';
 import { prepareDirectoryForExport } from './helpers/prepare';
@@ -10,7 +10,6 @@ import type {
 	IconifyMetaData,
 } from '@iconify/types';
 import { writeJSONFile } from '../misc/write-json';
-import { getTypesVersion } from './helpers/types-version';
 import {
 	exportCustomFiles,
 	ExportOptionsWithCustomFiles,
@@ -24,6 +23,9 @@ export interface ExportJSONPackageOptions
 		ExportOptionsWithCustomFiles {
 	// package.json contents
 	package?: Record<string, unknown>;
+
+	// Callback to update package.json data, allowing to add custom stuff
+	customisePackage?: (contents: Record<string, unknown>) => void;
 }
 
 interface ExportContents {
@@ -41,8 +43,8 @@ const exportTypes: Record<ExportContentsKeys, string> = {
 	chars: 'IconifyChars',
 };
 
-const iconsKeys = ['aliases'].concat(
-	Object.keys(iconDefaults)
+const iconsKeys = ['aliases', 'lastModified'].concat(
+	Object.keys(defaultIconDimensions)
 ) as (keyof IconifyJSON)[];
 const metadataKeys: (keyof IconifyMetaData)[] = [
 	'categories',
@@ -74,7 +76,7 @@ export async function exportJSONPackage(
 		icons: exportedJSON.icons,
 	};
 	iconsKeys.forEach((attr) => {
-		if (exportedJSON[attr] !== void 0) {
+		if (exportedJSON[attr] !== undefined) {
 			icons[attr as 'aliases'] = exportedJSON[attr as 'aliases'];
 		}
 	});
@@ -90,11 +92,16 @@ export async function exportJSONPackage(
 	});
 
 	// Contents
-	const info = exportedJSON.info;
+	const info = exportedJSON.info
+		? {
+				prefix: iconSet.prefix,
+				...exportedJSON.info,
+			}
+		: undefined;
 	const contents: ExportContents = {
 		icons,
 		info,
-		metadata: hasMetadata ? metadata : void 0,
+		metadata: hasMetadata ? metadata : undefined,
 		chars: exportedJSON.chars,
 	};
 
@@ -106,6 +113,7 @@ export async function exportJSONPackage(
 		{
 			'./*': './*',
 			'.': {
+				types: './index.d.ts',
 				require: './index.js',
 				import: './index.mjs',
 			},
@@ -126,7 +134,7 @@ export async function exportJSONPackage(
 		exports: packageJSONExports,
 		iconSet: packageJSONIconSet,
 		dependencies: dependencies || {
-			'@iconify/types': '^' + getTypesVersion(),
+			'@iconify/types': '*', // '^' + (await getTypesVersion()),
 		},
 	};
 
@@ -152,13 +160,15 @@ export async function exportJSONPackage(
 		cjsExports.push(`exports.${attr} = ${attr};`);
 		mjsExports.push(attr);
 
-		if (data !== void 0) {
+		if (data !== undefined) {
 			// Save JSON file
 			await writeJSONFile(`${dir}/${jsonFilename}`, data);
 
 			// Import data from JSON file
 			cjsImports.push(`const ${attr} = require('${relativeFile}');`);
-			mjsImports.push(`import ${attr} from '${relativeFile}';`);
+			mjsImports.push(
+				`import ${attr} from '${relativeFile}' with { type: 'json' };`
+			);
 
 			// Add data to package.json
 			packageJSONIconSet[attr] = attr + '.json';
@@ -209,6 +219,7 @@ export async function exportJSONPackage(
 	await exportCustomFiles(dir, options, files);
 
 	// Save package.json
+	options.customisePackage?.(packageJSON);
 	await writeJSONFile(dir + '/package.json', packageJSON);
 	files.add('package.json');
 

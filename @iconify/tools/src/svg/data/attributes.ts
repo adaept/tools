@@ -39,7 +39,6 @@ export const junkSVGAttributes = new Set([
  * Attributes and styles often added by bad software to wrong tags, such as Adobe Illustrator and Inkscape
  */
 export const badSoftwareAttributes = new Set([
-	'color-interpolation-filters',
 	'isolation',
 	'enable-background',
 	'overflow',
@@ -247,7 +246,7 @@ export const tagSpecificPresentationalAttributes: Record<
 
 	// Defnitions, containers and masks
 	clipPath: new Set([...presentationalAttributes]),
-	defs: new Set([...presentationalAttributes]),
+	defs: new Set([]),
 	g: new Set([...presentationalAttributes]),
 	mask: new Set(['x', 'y', 'width', 'height', ...presentationalAttributes]),
 	symbol: new Set(['x', 'y', 'width', 'height', ...presentationalAttributes]),
@@ -441,4 +440,11 @@ export const tagSpecificNonPresentationalAttributes: Record<
 		'stitchTiles',
 		'type',
 	]),
+};
+
+/**
+ * Styles to keep in tags
+ */
+export const tagSpecificInlineStyles: Record<string, Set<string>> = {
+	mask: new Set(['mask-type']),
 };

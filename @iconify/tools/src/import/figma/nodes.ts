@@ -8,7 +8,7 @@ import type {
 import type { FigmaGetIconNodesOptions } from './types/options';
 import type { FigmaNodesImportResult } from './types/result';
 
-// eslint-disable-next-line @typescript-eslint/no-unused-vars-experimental, @typescript-eslint/no-unused-vars
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 function assertNever(v: never) {
 	//
 }
@@ -16,12 +16,12 @@ function assertNever(v: never) {
 /**
  * Get node ids for icons
  */
-export async function getFigmaIconNodes(
+export function getFigmaIconNodes(
 	document: FigmaDocument,
 	options: FigmaGetIconNodesOptions
-): Promise<FigmaNodesImportResult> {
+): FigmaNodesImportResult {
 	const nodes: FigmaNodesImportResult = {
-		icons: Object.create(null),
+		icons: Object.create(null) as FigmaNodesImportResult['icons'],
 	};
 	let found = 0;
 
@@ -36,9 +36,8 @@ export async function getFigmaIconNodes(
 				if (iconNode.absoluteBoundingBox) {
 					const box = iconNode.absoluteBoundingBox;
 					const item: FigmaImportNodeData = {
-						id: node.id,
+						...node,
 						type: iconNodeType,
-						name: node.name,
 						width: box.width,
 						height: box.height,
 						parents,
@@ -88,11 +87,12 @@ export async function getFigmaIconNodes(
 		switch (parentNodeType) {
 			case 'CANVAS':
 			case 'FRAME':
-			case 'GROUP': {
+			case 'GROUP':
+			case 'SECTION':
+			case 'COMPONENT_SET': {
 				const parentItem: FigmaParentNodeData = {
-					id: node.id,
+					...node,
 					type: parentNodeType,
-					name: node.name,
 				};
 				const newParents = parents.concat([parentItem]);
 
@@ -100,8 +100,8 @@ export async function getFigmaIconNodes(
 					// Check page against allowed pages list
 					const allowedPages = options.pages;
 					if (
-						allowedPages.indexOf(node.id) === -1 &&
-						allowedPages.indexOf(node.name.trim()) === -1
+						!allowedPages.includes(node.id) &&
+						!allowedPages.includes(node.name.trim())
 					) {
 						return;
 					}

@@ -1,26 +1,35 @@
 import type { SVG } from '.';
 import { removeBadAttributes } from './cleanup/attribs';
-import { checkBadTags } from './cleanup/bad-tags';
+import { CheckBadTagsOptions, checkBadTags } from './cleanup/bad-tags';
 import { cleanupInlineStyle } from './cleanup/inline-style';
+import { cleanupRootStyle } from './cleanup/root-style';
 import { cleanupSVGRoot } from './cleanup/root-svg';
 import { convertStyleToAttrs } from './cleanup/svgo-style';
 
 /**
+ * Options
+ */
+export type CleanupSVGOptions = CheckBadTagsOptions;
+
+/**
  * Clean up SVG before parsing/optimising it
  */
-export async function cleanupSVG(svg: SVG): Promise<void> {
+export function cleanupSVG(svg: SVG, options?: CleanupSVGOptions): void {
 	// Remove junk from style
-	await cleanupInlineStyle(svg);
+	cleanupInlineStyle(svg);
 
 	// Expand style
-	await convertStyleToAttrs(svg);
+	convertStyleToAttrs(svg);
 
 	// Cleanup <svg> element
-	await cleanupSVGRoot(svg);
+	cleanupSVGRoot(svg);
 
 	// Check for bad tags
-	await checkBadTags(svg);
+	checkBadTags(svg, options);
 
 	// Remove attributes
-	await removeBadAttributes(svg);
+	removeBadAttributes(svg);
+
+	// Clean up root style
+	cleanupRootStyle(svg);
 }

@@ -2,21 +2,20 @@ import type {
 	IconifyJSON,
 	ExtendedIconifyIcon,
 	ExtendedIconifyAlias,
-	IconifyOptional,
 	IconifyInfo,
 	IconifyIcons,
 	IconifyAliases,
 	IconifyCategories,
 } from '@iconify/types';
-import { fullIcon } from '@iconify/utils/lib/icon';
-import { iconToSVG } from '@iconify/utils/lib/svg/build';
 import {
-	defaults,
-	IconifyIconCustomisations,
-} from '@iconify/utils/lib/customisations';
+	defaultIconDimensions,
+	defaultIconProps,
+} from '@iconify/utils/lib/icon/defaults';
+import { iconToSVG } from '@iconify/utils/lib/svg/build';
+import type { IconifyIconCustomisations } from '@iconify/utils/lib/customisations/defaults';
 import { minifyIconSet } from '@iconify/utils/lib/icon-set/minify';
 import { convertIconSetInfo } from '@iconify/utils/lib/icon-set/convert-info';
-import { extraDefaultProps, filterProps } from './props';
+import { filterProps, defaultCommonProps } from './props';
 import type {
 	CheckThemeResult,
 	CommonIconProps,
@@ -27,18 +26,20 @@ import type {
 	IconSetIconEntry,
 	IconSetIconType,
 	IconSetIconVariation,
+	IconSetSyncForEachCallback,
 	ResolvedIconifyIcon,
 } from './types';
 import { SVG } from '../svg';
+import type {
+	ParentIconsList,
+	ParentIconsTree,
+} from '@iconify/utils/lib/icon-set/tree';
+import { mergeIconData } from '@iconify/utils';
 
-// eslint-disable-next-line @typescript-eslint/no-unused-vars-experimental, @typescript-eslint/no-unused-vars
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 function assertNever(v: never) {
 	//
 }
-
-// Maximum depth for looking for parent icons
-// Must match depth limit in Iconify Utils (tested in unit tests by parsing same icon set with deep aliases)
-const maxIteration = 6;
 
 // Theme keys
 const themeKeys: ('prefixes' | 'suffixes')[] = ['prefixes', 'suffixes'];
@@ -65,6 +66,9 @@ export class IconSet {
 	// Icon set prefix
 	public prefix!: string;
 
+	// Last modification time
+	public lastModified!: number;
+
 	// All icons
 	public entries!: Record<string, IconSetIconEntry>;
 
@@ -90,17 +94,24 @@ export class IconSet {
 		this.prefix = data.prefix;
 
 		// Defaults
-		const defaultProps = filterProps(data);
+		const defaultProps = filterProps(data, defaultIconDimensions, true);
 
 		// Add icons
-		this.entries = Object.create(null);
+		this.entries = Object.create(null) as typeof this.entries;
 		const entries = this.entries;
 		for (const name in data.icons) {
 			const item = data.icons[name];
 			const entry: IconSetIcon = {
 				type: 'icon',
 				body: item.body,
-				props: { ...defaultProps, ...filterProps(item) },
+				props: filterProps(
+					{
+						...defaultProps,
+						...item,
+					},
+					defaultCommonProps,
+					true
+				),
 				chars: new Set(),
 				categories: new Set(),
 			};
@@ -110,9 +121,13 @@ export class IconSet {
 		// Add aliases
 		if (data.aliases) {
 			for (const name in data.aliases) {
+				if (entries[name]) {
+					// identical alias and icon
+					continue;
+				}
 				const item = data.aliases[name];
 				const parent = item.parent;
-				const props = filterProps(item);
+				const props = filterProps(item, defaultCommonProps, false);
 				const chars: Set<string> = new Set();
 				if (Object.keys(props).length) {
 					// Variation
@@ -121,7 +136,6 @@ export class IconSet {
 						parent,
 						props,
 						chars,
-						categories: new Set(),
 					};
 					entries[name] = entry;
 				} else {
@@ -138,7 +152,7 @@ export class IconSet {
 
 		// Info
 		const info = data.info && convertIconSetInfo(data.info);
-		this.info = info || void 0;
+		this.info = info || undefined;
 
 		// Characters map
 		if (data.chars) {
@@ -164,7 +178,6 @@ export class IconSet {
 					const icon = entries[iconName];
 					switch (icon?.type) {
 						case 'icon':
-						case 'variation':
 							icon.categories.add(item);
 					}
 				});
@@ -175,8 +188,14 @@ export class IconSet {
 		}
 
 		// Themes
-		const prefixes = (this.prefixes = Object.create(null));
-		const suffixes = (this.suffixes = Object.create(null));
+		const prefixes = (this.prefixes = Object.create(null) as Record<
+			string,
+			string
+		>);
+		const suffixes = (this.suffixes = Object.create(null) as Record<
+			string,
+			string
+		>);
 		if (data.themes) {
 			// Import legacy format
 			for (const key in data.themes) {
@@ -201,22 +220,31 @@ export class IconSet {
 			// Copy data, overwriting imported legacy format
 			const items = data[prop];
 			if (items) {
-				this[prop] = Object.create(null);
+				this[prop] = Object.create(null) as Record<string, string>;
 				for (const key in items) {
 					this[prop][key] = items[key];
 				}
 			}
 		});
+
+		// Last modification time
+		this.lastModified = data.lastModified || 0;
+	}
+
+	/**
+	 * Update last modification time
+	 */
+	updateLastModified(value?: number) {
+		this.lastModified = value || Math.floor(Date.now() / 1000);
 	}
 
 	/**
 	 * List icons
 	 */
 	list(types: IconSetIconType[] = ['icon', 'variation']): string[] {
-		return Object.keys(this.entries).filter((name) => {
-			const type = this.entries[name].type;
-			return types.indexOf(type) !== -1;
-		});
+		return Object.keys(this.entries).filter((name) =>
+			types.includes(this.entries[name].type)
+		);
 	}
 
 	/**
@@ -246,6 +274,78 @@ export class IconSet {
 	}
 
 	/**
+	 * Synchronous version of forEach function to loop through all entries.
+	 *
+	 * Callback should return false to stop loop.
+	 */
+	forEachSync(
+		callback: IconSetSyncForEachCallback,
+		types: IconSetIconType[] = ['icon', 'variation', 'alias']
+	): void {
+		const names = this.list(types);
+		for (let i = 0; i < names.length; i++) {
+			const name = names[i];
+			const item = this.entries[name];
+			if (item) {
+				const result = callback(name, item.type);
+				if (result === false) {
+					return;
+				}
+			}
+		}
+	}
+
+	/**
+	 * Get parent icons tree
+	 *
+	 * Returns parent icons list for each icon, null if failed to resolve.
+	 * In parent icons list, first element is a direct parent, last is icon. Does not include item.
+	 *
+	 * Examples:
+	 *   'alias3': ['alias2', 'alias1', 'icon']
+	 * 	 'icon': []
+	 * 	 'bad-icon': null
+	 */
+	getTree(names?: string[]): ParentIconsTree {
+		const entries = this.entries;
+		const resolved = Object.create(null) as ParentIconsTree;
+
+		function resolve(name: string): ParentIconsList | null {
+			const item = entries[name];
+			if (!item) {
+				// No such item
+				return (resolved[name] = null);
+			}
+
+			if (item.type === 'icon') {
+				// Icon
+				return (resolved[name] = []);
+			}
+
+			if (resolved[name] === undefined) {
+				// Mark as failed if parent alias points to this icon to avoid infinite loop
+				resolved[name] = null;
+
+				// Get parent icon name
+				const parent = item.parent;
+
+				// Get value for parent
+				const value = parent && resolve(parent);
+				if (value) {
+					resolved[name] = [parent].concat(value);
+				}
+			}
+
+			return resolved[name];
+		}
+
+		// Resolve only required icons
+		(names || Object.keys(entries)).forEach(resolve);
+
+		return resolved;
+	}
+
+	/**
 	 * Resolve icon
 	 */
 	resolve(name: string, full: false): ResolvedIconifyIcon | null;
@@ -255,77 +355,35 @@ export class IconSet {
 		name: string,
 		full = false
 	): Required<ResolvedIconifyIcon> | ResolvedIconifyIcon | null {
+		// Get parent icons tree
 		const entries = this.entries;
+		const item = entries[name];
+		const tree =
+			item && (item.type === 'icon' ? [] : this.getTree([name])[name]);
+		if (!tree) {
+			return null;
+		}
 
-		function getIcon(
-			name: string,
-			iteration: number
-		): ResolvedIconifyIcon | null {
-			if (entries[name] === void 0 || iteration > maxIteration) {
-				// Missing or loop is too deep
-				return null;
+		// Parse tree, including icon
+		let result = {} as ResolvedIconifyIcon;
+
+		function parse(name: string) {
+			const item = entries[name];
+			if (item.type === 'alias') {
+				return;
 			}
 
-			const item = entries[name];
-			switch (item.type) {
-				case 'icon': {
-					const result: ResolvedIconifyIcon = {
-						body: item.body,
-						...item.props,
-					};
-					return result;
-				}
-
-				case 'alias':
-					return getIcon(item.parent, iteration + 1);
-
-				case 'variation': {
-					const parent = getIcon(item.parent, iteration + 1);
-					if (!parent) {
-						return null;
-					}
-
-					for (const key in item.props) {
-						const attr = key as keyof IconifyOptional;
-						const value = item.props[attr];
-						if (value) {
-							if (parent[attr] === void 0) {
-								parent[attr as 'rotate'] = value as number;
-							} else {
-								// Merge props
-								switch (attr) {
-									case 'rotate':
-										parent[attr] =
-											((parent[attr] as number) +
-												(value as number)) %
-											4;
-										break;
-
-									case 'hFlip':
-									case 'vFlip':
-										parent[attr] = !parent[attr];
-										break;
-
-									default:
-										parent[attr] = value as number;
-										break;
-								}
-							}
-						}
-					}
-					return parent;
-				}
-
-				default:
-					assertNever(item);
-					return null;
+			result = mergeIconData(item.props, result) as ResolvedIconifyIcon;
+			if (item.type === 'icon') {
+				result.body = item.body;
 			}
 		}
 
-		const result = getIcon(name, 0);
+		parse(name);
+		tree.forEach(parse);
 
 		// Return icon
-		return result && full ? fullIcon(result) : result;
+		return result && full ? { ...defaultIconProps, ...result } : result;
 	}
 
 	/**
@@ -333,19 +391,16 @@ export class IconSet {
 	 */
 	toString(
 		name: string,
-		custommisations: IconifyIconCustomisations = {
+		customisations: IconifyIconCustomisations = {
 			width: 'auto',
 			height: 'auto',
 		}
 	): string | null {
-		const item = this.resolve(name, true);
+		const item = this.resolve(name);
 		if (!item) {
 			return null;
 		}
-		const result = iconToSVG(item, {
-			...defaults,
-			...custommisations,
-		});
+		const result = iconToSVG(item, customisations);
 
 		const attributes = Object.keys(result.attributes)
 			.map(
@@ -370,8 +425,11 @@ export class IconSet {
 	 * Export icon set
 	 */
 	export(validate = true): IconifyJSON {
-		const icons: IconifyIcons = Object.create(null);
-		const aliases: IconifyAliases = Object.create(null);
+		const icons = Object.create(null) as IconifyIcons;
+		const aliases = Object.create(null) as IconifyAliases;
+		const tree = validate
+			? this.getTree()
+			: (Object.create(null) as ParentIconsTree);
 
 		// Add icons
 		const names = Object.keys(this.entries);
@@ -390,7 +448,7 @@ export class IconSet {
 
 				case 'alias':
 				case 'variation': {
-					if (validate && !this.resolve(name)) {
+					if (validate && !tree[name]) {
 						break;
 					}
 					const props = item.type === 'variation' ? item.props : {};
@@ -413,7 +471,7 @@ export class IconSet {
 		if (this.info) {
 			// Update icons count and clone object
 			this.info.total = this.count();
-			info = JSON.parse(JSON.stringify(this.info));
+			info = JSON.parse(JSON.stringify(this.info)) as IconifyInfo;
 		}
 
 		// Generate result
@@ -422,6 +480,9 @@ export class IconSet {
 		} as IconifyJSON;
 		if (info) {
 			result.info = info;
+		}
+		if (this.lastModified) {
+			result.lastModified = this.lastModified;
 		}
 		result.icons = icons;
 		if (Object.keys(aliases).length) {
@@ -437,7 +498,7 @@ export class IconSet {
 		}
 
 		// Get categories
-		const categories: IconifyCategories = Object.create(null);
+		const categories = Object.create(null) as IconifyCategories;
 		Array.from(this.categories)
 			// Sort
 			.sort((a, b) => a.title.localeCompare(b.title))
@@ -445,6 +506,7 @@ export class IconSet {
 			.forEach((item) => {
 				const names = this.listCategory(item);
 				if (names) {
+					names.sort((a, b) => a.localeCompare(b));
 					categories[item.title] = names;
 				}
 			});
@@ -458,9 +520,11 @@ export class IconSet {
 			const items = this[prop];
 			const keys = Object.keys(items);
 			if (keys.length) {
-				// Sort theme and get matching icon names
-				sortThemeKeys(keys);
-				const sortedTheme = Object.create(null);
+				// Get matching icon names
+				const sortedTheme = Object.create(null) as Record<
+					string,
+					string
+				>;
 				const tested = this.checkTheme(prop === 'prefixes');
 
 				// Add all themes that aren't empty
@@ -487,7 +551,7 @@ export class IconSet {
 	 * Get characters map
 	 */
 	chars(names?: string[]): Record<string, string> {
-		const chars: Record<string, string> = Object.create(null);
+		const chars = Object.create(null) as Record<string, string>;
 		if (!names) {
 			names = Object.keys(this.entries);
 		}
@@ -551,7 +615,7 @@ export class IconSet {
 	/**
 	 * Find category by title
 	 */
-	_findCategory(title: string, add: boolean): IconCategory | null {
+	findCategory(title: string, add: boolean): IconCategory | null {
 		const categoryItem = Array.from(this.categories).find(
 			(item) => item.title === title
 		);
@@ -580,15 +644,15 @@ export class IconSet {
 		// Find item
 		const categoryItem =
 			typeof category === 'string'
-				? this._findCategory(category, false)
+				? this.findCategory(category, false)
 				: category;
 		if (!categoryItem) {
 			return null;
 		}
 
 		// Find icons
-		const icons = this._filter((_key, item, icon) => {
-			if (item.type === 'alias' || item.props.hidden || icon?.hidden) {
+		const icons = this._filter((_key, item) => {
+			if (item.type !== 'icon' || item.props.hidden) {
 				return false;
 			}
 			return item.categories.has(categoryItem);
@@ -615,79 +679,66 @@ export class IconSet {
 	/**
 	 * Remove icons. Returns number of removed icons
 	 *
-	 * If removeDependencies is a string, it represents new parent for all aliases of removed icon.
+	 * If removeDependencies is a string, it represents new parent for all aliases of removed icon. New parent cannot be alias or variation.
 	 */
 	remove(name: string, removeDependencies: boolean | string = true): number {
 		const entries = this.entries;
-		const names: Set<string> = new Set();
 
 		// Check if new parent exists
 		if (typeof removeDependencies === 'string') {
-			if (name === removeDependencies || !entries[removeDependencies]) {
+			const item = entries[removeDependencies];
+			if (name === removeDependencies || item?.type !== 'icon') {
 				return 0;
 			}
-			names.add(removeDependencies);
 		}
 
-		function del(name: string, iteration: number): boolean {
-			if (
-				entries[name] === void 0 ||
-				iteration > maxIteration ||
-				names.has(name)
-			) {
-				// Missing or loop is too deep
-				return false;
-			}
-			names.add(name);
+		const item = entries[name];
+		if (!item) {
+			return 0;
+		}
 
-			if (
-				removeDependencies === true ||
-				(!iteration && typeof removeDependencies === 'string')
-			) {
-				// Find icons that have this icon as parent
-				for (const key in entries) {
-					const item = entries[key];
-					switch (item.type) {
-						case 'icon':
-							break;
+		// Icon set is about to be modified
+		this.updateLastModified();
 
-						case 'alias':
-						case 'variation':
-							if (item.parent === name) {
-								if (removeDependencies === true) {
-									if (!del(key, iteration + 1)) {
-										return false;
-									}
-									break;
-								}
-
-								// Change parent
-								item.parent = removeDependencies;
-							}
-							break;
-
-						default:
-							assertNever(item);
-					}
+		// Update dependencies
+		if (typeof removeDependencies === 'string') {
+			for (const key in entries) {
+				const item = entries[key];
+				if (item.type !== 'icon' && item.parent === name) {
+					item.parent = removeDependencies;
 				}
 			}
-			return true;
+			return 0;
 		}
 
-		if (del(name, 0)) {
-			if (typeof removeDependencies === 'string') {
-				names.delete(removeDependencies);
-			}
-			names.forEach((name) => {
-				delete entries[name];
+		// Remove item
+		delete entries[name];
+		let count = 1;
+
+		// Remove icons where parent matches removed icon
+		function remove(parent: string) {
+			const list: string[] = Object.keys(entries).filter((name) => {
+				const item = entries[name];
+				return item.type !== 'icon' && item.parent === parent;
 			});
-			return names.size;
+			list.forEach((name) => {
+				if (entries[name]) {
+					delete entries[name];
+					count++;
+					remove(name);
+				}
+			});
 		}
-		return 0;
+
+		if (removeDependencies === true) {
+			remove(name);
+		}
+
+		return count;
 	}
 
 	/**
-	 * Remove icon
+	 * Rename icon
 	 */
 	rename(oldName: string, newName: string): boolean {
 		const entries = this.entries;
@@ -699,7 +750,6 @@ export class IconSet {
 			}
 		}
 
-		// Rename icon
 		if (!entries[oldName]) {
 			return false;
 		}
@@ -725,6 +775,9 @@ export class IconSet {
 			}
 		}
 
+		// Update last modification time
+		this.updateLastModified();
+
 		return true;
 	}
 
@@ -741,6 +794,7 @@ export class IconSet {
 			}
 		}
 		this.entries[name] = item;
+		this.updateLastModified();
 		return true;
 	}
 
@@ -751,7 +805,7 @@ export class IconSet {
 		return this.setItem(name, {
 			type: 'icon',
 			body: icon.body,
-			props: filterProps(icon),
+			props: filterProps(icon, defaultCommonProps, true),
 			chars: new Set(),
 			categories: new Set(),
 		});
@@ -776,26 +830,11 @@ export class IconSet {
 		parent: string,
 		props: CommonIconProps
 	): boolean {
-		// Copy categories
-		let categories: Set<IconCategory> | undefined;
-		while (!categories) {
-			const parentItem = this.entries[parent];
-			if (!parentItem) {
-				return false;
-			}
-			if (parentItem.type === 'alias') {
-				parent = parentItem.parent;
-			} else {
-				categories = new Set(parentItem.categories);
-			}
-		}
-
 		return this.setItem(name, {
 			type: 'variation',
 			parent,
 			props,
 			chars: new Set(),
-			categories,
 		});
 	}
 
@@ -803,28 +842,21 @@ export class IconSet {
 	 * Icon from SVG. Updates old icon if it exists
 	 */
 	fromSVG(name: string, svg: SVG): boolean {
-		const props: CommonIconProps = svg.viewBox;
+		const props: CommonIconProps = { ...svg.viewBox };
 		const body = svg.getBody();
 		const item = this.entries[name];
 
 		switch (item?.type) {
 			case 'icon':
 			case 'variation': {
-				// Copy extra properties
-				for (const key in extraDefaultProps) {
-					const prop = key as keyof typeof extraDefaultProps;
-					if (item.props[prop]) {
-						props[prop] = item.props[prop];
-					}
-				}
-
 				// Set icon
 				return this.setItem(name, {
 					type: 'icon',
 					body,
 					props,
 					chars: item.chars,
-					categories: item.categories,
+					categories:
+						item.type === 'icon' ? item.categories : new Set(),
 				});
 			}
 		}
@@ -856,13 +888,12 @@ export class IconSet {
 	 */
 	toggleCategory(iconName: string, category: string, add: boolean): boolean {
 		const item = this.entries[iconName];
-		const categoryItem = this._findCategory(category, add);
+		const categoryItem = this.findCategory(category, add);
 		if (!item || !categoryItem) {
 			return false;
 		}
 		switch (item.type) {
 			case 'icon':
-			case 'variation':
 				if (item.categories.has(categoryItem) !== add) {
 					categoryItem.count += add ? 1 : -1;
 					item.categories[add ? 'add' : 'delete'](categoryItem);
@@ -880,7 +911,7 @@ export class IconSet {
 		const keys = sortThemeKeys(Object.keys(themes));
 
 		const results: CheckThemeResult = {
-			valid: Object.create(null),
+			valid: Object.create(null) as CheckThemeResult['valid'],
 			invalid: [],
 		};
 		keys.forEach((key) => {

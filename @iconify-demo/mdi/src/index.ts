@@ -84,23 +84,26 @@ const info: IconifyInfo = {
     */
 
 	// Import icon set
-	const iconSet = await importDirectory(downloadResult.target + iconsDir, {
-		prefix,
-	});
+	const iconSet = await importDirectory(
+		downloadResult.contentsDir + iconsDir,
+		{
+			prefix,
+		}
+	);
 	console.log('Found', iconSet.count(), 'icons');
 
 	// Add information
 	iconSet.info = info;
 
 	// Clean up icons
-	await iconSet.forEach(async (name) => {
+	await iconSet.forEach((name) => {
 		const svg = iconSet.toSVG(name);
 		if (!svg) {
 			return;
 		}
 
 		// Set fill to 'currentColor'
-		await parseColors(svg, {
+		parseColors(svg, {
 			// Change default color to 'currentColor'
 			defaultColor: 'currentColor',
 
@@ -119,10 +122,10 @@ const info: IconifyInfo = {
 		});
 
 		// Optimise
-		await runSVGO(svg);
+		runSVGO(svg);
 
 		// Update paths for compatibility with old software
-		await deOptimisePaths(svg);
+		deOptimisePaths(svg);
 
 		// Update icon in icon set
 		iconSet.fromSVG(name, svg);
@@ -160,7 +163,7 @@ const info: IconifyInfo = {
 			})) as DownloadNPMPackageResult;
 
 			// Get version number from last package
-			oldPackageDir = importResult.actualDir;
+			oldPackageDir = importResult.contentsDir;
 			const lastVersion = JSON.parse(
 				await fs.readFile(oldPackageDir + '/package.json', 'utf8')
 			).version;

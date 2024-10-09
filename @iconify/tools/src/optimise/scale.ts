@@ -1,43 +1,30 @@
 import type { SVG } from '../svg';
+import { resetSVGOrigin } from './origin';
 import { runSVGO } from './svgo';
 
 /**
  * Scale icon
  */
-export async function scaleSVG(svg: SVG, scale: number): Promise<void> {
-	const viewBox = svg.viewBox;
-	const width = viewBox.width * scale;
-	const height = viewBox.height * scale;
-	const left = viewBox.left * scale;
-	const top = viewBox.top * scale;
+export function scaleSVG(svg: SVG, scale: number) {
+	// Reset origin first
+	resetSVGOrigin(svg);
 
-	const content =
-		'<svg width="' +
-		width +
-		'" height="' +
-		height +
-		'" viewBox="' +
-		left +
-		' ' +
-		top +
-		' ' +
-		width +
-		' ' +
-		height +
-		'">' +
-		'<g transform="scale(' +
-		scale +
-		')">' +
-		svg.getBody() +
-		'</g></svg>';
-	svg.load(content);
+	// Scale
+	if (scale !== 1) {
+		const viewBox = svg.viewBox;
+		const width = viewBox.width * scale;
+		const height = viewBox.height * scale;
 
-	await runSVGO(svg, {
-		plugins: [
-			'collapseGroups',
-			'convertTransform',
-			'convertPathData',
-			'sortAttrs',
-		],
-	});
+		const content = `<svg width="${width}" height="${height}" viewBox="0 0 ${width} ${height}"><g transform="scale(${scale})">${svg.getBody()}</g></svg>`;
+		svg.load(content);
+
+		runSVGO(svg, {
+			plugins: [
+				'collapseGroups',
+				'convertTransform',
+				'convertPathData',
+				'sortAttrs',
+			],
+		});
+	}
 }

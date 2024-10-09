@@ -1,4 +1,4 @@
-import type { SVG } from '..';
+import type { SVG } from '../../svg';
 import {
 	badAttributes,
 	badAttributePrefixes,
@@ -10,11 +10,16 @@ import { runSVGO } from '../../optimise/svgo';
 /**
  * Expand inline style
  */
-export async function convertStyleToAttrs(svg: SVG): Promise<void> {
+export function convertStyleToAttrs(svg: SVG): void {
 	let hasStyle = false;
 
 	// Clean up style, removing useless junk
-	await parseSVGStyle(svg, (item) => {
+	parseSVGStyle(svg, (item) => {
+		if (item.type !== 'inline' && item.type !== 'global') {
+			return item.value;
+		}
+
+		// Inline or global
 		const prop = item.prop;
 		if (
 			// Attributes / properties now allowed
@@ -22,7 +27,7 @@ export async function convertStyleToAttrs(svg: SVG): Promise<void> {
 			badSoftwareAttributes.has(prop) ||
 			badAttributePrefixes.has(prop.split('-').shift() as string)
 		) {
-			return void 0;
+			return;
 		}
 
 		hasStyle = true;
@@ -35,7 +40,7 @@ export async function convertStyleToAttrs(svg: SVG): Promise<void> {
 	}
 
 	// Run SVGO
-	await runSVGO(svg, {
+	runSVGO(svg, {
 		plugins: ['convertStyleToAttrs', 'inlineStyles'],
 		multipass: true,
 	});

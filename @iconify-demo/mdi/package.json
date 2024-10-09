@@ -11,9 +11,10 @@
 	},
 	"type": "module",
 	"dependencies": {
-		"@iconify/tools": "^2.0.0"
+		"@iconify/tools": "workspace:^"
 	},
 	"devDependencies": {
-		"typescript": "^4.4.3"
+		"@types/node": "^20.14.14",
+		"typescript": "^5.5.4"
 	}
 }

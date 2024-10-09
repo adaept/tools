@@ -1,11 +1,9 @@
-import type { SVG } from '..';
+import type { SVG } from '../../svg';
 import { parseSVG } from '../parse';
 import {
 	allValidTags,
 	animateMotionChildTags,
-	animateTags,
 	badTags,
-	defsTag,
 	feComponentTransferChildTag,
 	feLightningChildTags,
 	feLightningTags,
@@ -14,7 +12,6 @@ import {
 	filterTag,
 	gradientChildTags,
 	gradientTags,
-	tagsInsideDefs,
 	unsupportedTags,
 } from '../data/tags';
 
@@ -36,9 +33,6 @@ requiredParentTags.set(feLightningTags, feLightningChildTags);
 // Filter tags must be children of <filter>
 requiredParentTags.set(filterTag, filterChildTags);
 
-// Tags that must be inside <defs>: gradients, <pattern>, <marker>
-requiredParentTags.set(defsTag, tagsInsideDefs);
-
 // <stop> must be inside gradient
 requiredParentTags.set(gradientTags, gradientChildTags);
 
@@ -46,10 +40,26 @@ requiredParentTags.set(gradientTags, gradientChildTags);
 requiredParentTags.set(new Set(['animateMotion']), animateMotionChildTags);
 
 /**
+ * Options
+ */
+export interface CheckBadTagsOptions {
+	keepTitles?: boolean;
+}
+
+const defaultOptions: Required<CheckBadTagsOptions> = {
+	keepTitles: false,
+};
+
+/**
  * Test for bag tags
  */
-export async function checkBadTags(svg: SVG): Promise<void> {
-	await parseSVG(svg, (item) => {
+export function checkBadTags(svg: SVG, options?: CheckBadTagsOptions): void {
+	const { keepTitles } = {
+		...defaultOptions,
+		...options,
+	};
+
+	parseSVG(svg, (item) => {
 		const tagName = item.tagName;
 		const $element = item.$element;
 
@@ -58,6 +68,18 @@ export async function checkBadTags(svg: SVG): Promise<void> {
 			if (item.parents.length) {
 				// Technically code is correct, but it badly complicates parsing, so not supported
 				throw new Error(`Unexpected element: <${tagName}>`);
+			}
+			return;
+		}
+
+		// Optional
+		if (keepTitles && tagName === 'title') {
+			// Allow title
+			const content = $element.html();
+			if (content?.includes('<') || content?.includes('>')) {
+				// Bad title
+				$element.remove();
+				item.testChildren = false;
 			}
 			return;
 		}

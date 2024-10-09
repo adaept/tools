@@ -1,16 +1,17 @@
 import { stringToColor } from '@iconify/utils/lib/colors';
 import { SVG } from '../../lib/svg';
 import { parseColors, isEmptyColor } from '../../lib/colors/parse';
-import { loadFixture } from '../load';
+import { removeBadAttributes } from '../../lib/svg/cleanup/attribs';
+import { loadFixture } from '../../lib/tests/helpers';
 
 describe('Finding colors', () => {
-	test('Icon without colors', async () => {
+	test('Icon without colors', () => {
 		const svgCode =
 			'<svg viewBox="0 0 24 24" width="24" height="24"><path d="M3 0v1h4v5h-4v1h5v-7h-5zm1 2v1h-4v1h4v1l2-1.5-2-1.5z"/></svg>';
 		const svg = new SVG(svgCode);
 
 		// Find colors
-		const searchResult = await parseColors(svg);
+		const searchResult = parseColors(svg);
 		expect(searchResult).toEqual({
 			colors: [],
 			hasUnsetColor: true,
@@ -21,7 +22,7 @@ describe('Finding colors', () => {
 		expect(svg.toString()).toBe(svgCode);
 
 		// Add color
-		const replaceResult = await parseColors(svg, {
+		const replaceResult = parseColors(svg, {
 			defaultColor: 'currentColor',
 		});
 		expect(replaceResult).toEqual({
@@ -41,13 +42,13 @@ describe('Finding colors', () => {
 		);
 	});
 
-	test('Colors on svg element', async () => {
+	test('Colors on svg element', () => {
 		const svgCode =
 			'<svg viewBox="0 0 24 24" width="24" height="24" fill="black"><path d="M3 0v1h4v5h-4v1h5v-7h-5zm1 2v1h-4v1h4v1l2-1.5-2-1.5z"/></svg>';
 		const svg = new SVG(svgCode);
 
 		// Find colors
-		const searchResult = await parseColors(svg);
+		const searchResult = parseColors(svg);
 		expect(searchResult).toEqual({
 			colors: [
 				{
@@ -66,7 +67,7 @@ describe('Finding colors', () => {
 		expect(svg.toString()).toBe(svgCode);
 
 		// Add color
-		const replaceResult = await parseColors(svg, {
+		const replaceResult = parseColors(svg, {
 			// Replace all colors with 'white'
 			callback: (_attr, _colorStr, color) => {
 				expect(color).toEqual({
@@ -102,7 +103,7 @@ describe('Finding colors', () => {
 		const svg = new SVG(svgCode);
 
 		// Find colors
-		const searchResult = await parseColors(svg);
+		const searchResult = parseColors(svg);
 		expect(searchResult).toEqual({
 			colors: [
 				'#bfbcaf',
@@ -127,7 +128,7 @@ describe('Finding colors', () => {
 		const svg = new SVG(svgCode);
 
 		// Find colors
-		const searchResult = await parseColors(svg);
+		const searchResult = parseColors(svg);
 		expect(searchResult).toEqual({
 			colors: ['#9ccc65', '#8bc34a', '#2e7d32', '#388e3c', '#43a047'].map(
 				stringToColor
@@ -141,7 +142,7 @@ describe('Finding colors', () => {
 		);
 
 		// Change everything to currentColor... because why not
-		const replaceResult = await parseColors(svg, {
+		const replaceResult = parseColors(svg, {
 			defaultColor: 'currentColor',
 			callback: (_attr, colorStr, color) => {
 				return !color
@@ -172,11 +173,11 @@ describe('Finding colors', () => {
 
 		// Gloabl style in SVG should not have changed
 		expect(svg.toMinifiedString()).toBe(
-			'<svg viewBox="0 0 10 10" xmlns="http://www.w3.org/2000/svg" width="10" height="10"><style>circle {fill: gold;stroke: maroon;stroke-width: 2px;}</style><circle cx="5" cy="5" r="4"/></svg>'
+			'<svg viewBox="0 0 10 10" xmlns="http://www.w3.org/2000/svg" width="10" height="10"><title>Circle</title><style>circle {fill: gold;stroke: maroon;stroke-width: 2px;}</style><circle cx="5" cy="5" r="4"/></svg>'
 		);
 
 		// Find colors
-		const searchResult = await parseColors(svg);
+		const searchResult = parseColors(svg);
 		expect(searchResult).toEqual({
 			colors: ['gold', 'maroon'].map(stringToColor),
 			hasUnsetColor: false,
@@ -185,11 +186,11 @@ describe('Finding colors', () => {
 
 		// SVG should not have changed
 		expect(svg.toMinifiedString()).toBe(
-			'<svg viewBox="0 0 10 10" xmlns="http://www.w3.org/2000/svg" width="10" height="10"><style>circle {fill: gold;stroke: maroon;stroke-width: 2px;}</style><circle cx="5" cy="5" r="4"/></svg>'
+			'<svg viewBox="0 0 10 10" xmlns="http://www.w3.org/2000/svg" width="10" height="10"><title>Circle</title><style>circle {fill: gold;stroke: maroon;stroke-width: 2px;}</style><circle cx="5" cy="5" r="4"/></svg>'
 		);
 
 		// Replace colors
-		const replaceResult = await parseColors(svg, {
+		const replaceResult = parseColors(svg, {
 			defaultColor: 'red',
 			callback: (attr, _colorStr, color) => {
 				switch (attr) {
@@ -227,11 +228,11 @@ describe('Finding colors', () => {
 
 		// Default color should not have been added because of global style
 		expect(svg.toMinifiedString()).toBe(
-			'<svg viewBox="0 0 10 10" xmlns="http://www.w3.org/2000/svg" width="10" height="10"><style>circle {fill: purple;stroke: green;stroke-width: 2px;}</style><circle cx="5" cy="5" r="4"/></svg>'
+			'<svg viewBox="0 0 10 10" xmlns="http://www.w3.org/2000/svg" width="10" height="10"><title>Circle</title><style>circle {fill: purple;stroke: green;stroke-width: 2px;}</style><circle cx="5" cy="5" r="4"/></svg>'
 		);
 	});
 
-	test('keywords', async () => {
+	test('keywords', () => {
 		const svgCode = `<svg xmlns="http://www.w3.org/2000/svg" width="10" height="10">
 	<g stroke="black">
 		<path d="" stroke="inherit" fill="none" />
@@ -242,7 +243,7 @@ describe('Finding colors', () => {
 		const svg = new SVG(svgCode);
 
 		// Find colors
-		const searchResult = await parseColors(svg);
+		const searchResult = parseColors(svg);
 		expect(searchResult).toEqual({
 			colors: [
 				'#000',
@@ -257,7 +258,7 @@ describe('Finding colors', () => {
 		});
 	});
 
-	test('Animations', async () => {
+	test('Animations', () => {
 		const svgCode = `<svg viewBox="0 0 10 10" xmlns="http://www.w3.org/2000/svg" width="10" height="10">
 		<rect width="10" height="10">
 		  <animate attributeName="fill" values="red;blue;green;red" dur="3s" repeatCount="indefinite"/>
@@ -266,7 +267,7 @@ describe('Finding colors', () => {
 		const svg = new SVG(svgCode);
 
 		// Find colors
-		const searchResult = await parseColors(svg);
+		const searchResult = parseColors(svg);
 		expect(searchResult).toEqual({
 			colors: ['red', 'blue', 'green'].map(stringToColor),
 			// Rectangle doesn't actually have color, even though animation sets it
@@ -278,13 +279,13 @@ describe('Finding colors', () => {
 		expect(svg.toString()).toBe(svgCode);
 	});
 
-	test('None', async () => {
+	test('None', () => {
 		const svgCode =
 			'<svg viewBox="0 0 24 24" width="24" height="24"><path d="M3 0v1h4v5h-4v1h5v-7h-5zm1 2v1h-4v1h4v1l2-1.5-2-1.5z" fill="none"/></svg>';
 		const svg = new SVG(svgCode);
 
 		// Find colors
-		const searchResult = await parseColors(svg);
+		const searchResult = parseColors(svg);
 		expect(searchResult).toEqual({
 			colors: [
 				{
@@ -296,34 +297,44 @@ describe('Finding colors', () => {
 		});
 	});
 
-	test('Unsupported color', async () => {
+	test('Function color', () => {
 		const svgCode =
-			'<svg viewBox="0 0 24 24" width="24" height="24"><path d="M3 0v1h4v5h-4v1h5v-7h-5zm1 2v1h-4v1h4v1l2-1.5-2-1.5z" fill="--var(foo)"/></svg>';
+			'<svg viewBox="0 0 24 24" width="24" height="24"><path d="M3 0v1h4v5h-4v1h5v-7h-5zm1 2v1h-4v1h4v1l2-1.5-2-1.5z" fill="var(--foo)"/></svg>';
 		const svg = new SVG(svgCode);
 
 		// Find colors
-		const searchResult = await parseColors(svg, {
+		const searchResult = parseColors(svg, {
 			callback: (attr, colorStr, color) => {
 				expect(attr).toBe('fill');
-				expect(colorStr).toBe('--var(foo)');
-				expect(color).toBeNull();
-				return '--bar(bar)';
+				expect(colorStr).toBe('var(--foo)');
+				expect(color).toEqual({
+					type: 'function',
+					func: 'var',
+					value: '--foo',
+				});
+				return 'var(--bar)';
 			},
 		});
 		expect(searchResult).toEqual({
-			colors: ['--bar(bar)'],
+			colors: [
+				{
+					type: 'function',
+					func: 'var',
+					value: '--bar',
+				},
+			],
 			hasUnsetColor: false,
 			hasGlobalStyle: false,
 		});
 	});
 
-	test('Empty color', async () => {
+	test('Empty color', () => {
 		const svgCode =
 			'<svg viewBox="0 0 24 24" width="24" height="24"><path d="M3 0v1h4v5h-4v1h5v-7h-5zm1 2v1h-4v1h4v1l2-1.5-2-1.5z" fill="" stroke="inherit"/></svg>';
 		const svg = new SVG(svgCode);
 
 		// Find colors
-		const searchResult = await parseColors(svg, {
+		const searchResult = parseColors(svg, {
 			callback: (attr) => {
 				throw new Error(`Unexpected callback call for "${attr}"`);
 			},
@@ -338,5 +349,135 @@ describe('Finding colors', () => {
 		expect(svg.toString()).toBe(
 			'<svg viewBox="0 0 24 24" width="24" height="24"><path d="M3 0v1h4v5h-4v1h5v-7h-5zm1 2v1h-4v1h4v1l2-1.5-2-1.5z"/></svg>'
 		);
+	});
+
+	test('Gradient', () => {
+		const svgCode = `<svg width="256px" height="256px" viewBox="0 0 256 256" version="1.1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" preserveAspectRatio="xMidYMid">
+			<defs>
+				<radialGradient cx="1.55750275e-05%" cy="99.999994%" fx="1.55750275e-05%" fy="99.999994%" r="120.115697%" gradientTransform="translate(0.000000,1.000000),scale(0.832531,1.000000),scale(1.000000,0.832531),translate(-0.000000,-1.000000)" id="radialGradient-1">
+					<stop stop-color="#00C812" offset="0%"></stop>
+					<stop stop-color="#006E00" offset="100%"></stop>
+				</radialGradient>
+			</defs>
+			<path d="M179.2,230.4 L256,230.4 L133.12,128 C131.433,165.193 147.807,201.58 179.2,230.4" fill="url(#radialGradient-1)"></path>
+		</svg>`;
+		const svg = new SVG(svgCode);
+
+		// Find colors
+		const searchResult = parseColors(svg, {
+			defaultColor: () => {
+				throw new Error('Unexpected callback call for defaultColor');
+			},
+		});
+		expect(searchResult).toEqual({
+			colors: [stringToColor('#00C812'), stringToColor('#006E00')],
+			hasUnsetColor: false,
+			hasGlobalStyle: false,
+		});
+	});
+
+	test('Mask that uses path', () => {
+		const svgCode = `<svg width="256px" height="256px" viewBox="0 0 256 256" version="1.1" xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="xMidYMid">
+			<defs>
+				<path d="M2.27464661e-14,0 L254.693878,3.04336596e-14 L254.693878,160.344259 C255.3267,161.198982 255.762422,162.157626 256,163.39634 L256,168.36419 C255.762422,169.608049 255.3267,170.691008 254.693878,171.604678 L254.693878,256 L0,256 L0,192 L0,64 L2.27464661e-14,0 Z" id="path-1"></path>
+				<radialGradient cx="16.6089694%" cy="17.3718345%" fx="16.6089694%" fy="17.3718345%" r="118.520308%" id="radialGradient-3">
+					<stop stop-color="#88CDE7" offset="0%"></stop>
+					<stop stop-color="#2274AD" offset="100%"></stop>
+				</radialGradient>
+			</defs>
+			<g stroke="none" stroke-width="1" fill="none" fill-rule="evenodd">
+				<mask id="mask-2" fill="white">
+					<use href="#path-1"></use>
+				</mask>
+				<polygon fill="url(#radialGradient-3)" mask="url(#mask-2)" points="0 256 256 256 256 0 0 0"></polygon>
+			</g>
+		</svg>`;
+		const svg = new SVG(svgCode);
+
+		// Find colors
+		const searchResult = parseColors(svg, {
+			defaultColor: () => {
+				throw new Error('Unexpected callback call for defaultColor');
+			},
+		});
+		expect(searchResult).toEqual({
+			colors: [
+				{
+					type: 'none',
+				},
+				stringToColor('#88CDE7'),
+				stringToColor('#2274AD'),
+			],
+			hasUnsetColor: false,
+			hasGlobalStyle: false,
+		});
+	});
+
+	test('Fill and clip-path using same id', async () => {
+		const svgCode = await loadFixture('arangodb.svg');
+		const svg = new SVG(svgCode);
+		removeBadAttributes(svg);
+
+		// Find colors
+		const searchResult = parseColors(svg, {
+			defaultColor: () => {
+				throw new Error('Unexpected callback call for defaultColor');
+			},
+		});
+		expect(searchResult).toEqual({
+			colors: [
+				stringToColor('#423334'),
+				stringToColor('#3D2F30'),
+				stringToColor('#6C4317'),
+				stringToColor('#A3B34F'),
+				stringToColor('#DDE072'),
+				stringToColor('#EAECA2'),
+				stringToColor('#633C11'),
+				stringToColor('#949952'),
+				stringToColor('#B0AD51'),
+				stringToColor('#7C9350'),
+				stringToColor('#577138'),
+			],
+			hasUnsetColor: false,
+			hasGlobalStyle: false,
+		});
+	});
+
+	test('Missing stop-color with stop-opacity', async () => {
+		const svgCode = await loadFixture('amphora_color.svg');
+		const svg = new SVG(svgCode);
+		removeBadAttributes(svg);
+
+		// Find colors
+		const searchResult = parseColors(svg, {
+			defaultColor: () => {
+				throw new Error('Unexpected callback call for defaultColor');
+			},
+		});
+		expect(searchResult.hasUnsetColor).toBe(false);
+		expect(searchResult.hasGlobalStyle).toBe(false);
+	});
+
+	test('Async callback', async () => {
+		const svgCode = await loadFixture('fci-biomass.svg');
+		const svg = new SVG(svgCode);
+
+		// Find colors
+		let threw = false;
+		try {
+			parseColors(svg, {
+				// @ts-expect-error Testing legacy code, should no longer work
+				callback: () => {
+					return new Promise((resolve) => {
+						setTimeout(() => {
+							resolve('remove');
+						}, 0);
+					});
+				},
+			});
+		} catch {
+			threw = true;
+		}
+		expect(threw).toBeTruthy();
 	});
 });

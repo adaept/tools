@@ -1,4 +1,5 @@
-import type { SVG } from '..';
+import type { CheerioElement } from '../../misc/cheerio';
+import type { SVG } from '../../svg';
 import {
 	badAttributes,
 	badAttributePrefixes,
@@ -9,15 +10,15 @@ import {
 	tagSpecificNonPresentationalAttributes,
 	tagSpecificPresentationalAttributes,
 } from '../data/attributes';
-import { maskAndSymbolTags } from '../data/tags';
+import { maskTags, reusableElementsWithPalette } from '../data/tags';
 
 /**
  * Clean up SVG
  */
-export async function cleanupSVGRoot(svg: SVG): Promise<void> {
+export function cleanupSVGRoot(svg: SVG) {
 	const cheerio = svg.$svg;
 	const $root = svg.$svg(':root');
-	const root = $root.get(0) as cheerio.TagElement;
+	const root = $root.get(0) as CheerioElement;
 	const tagName = 'svg';
 	if (root.tagName !== tagName) {
 		throw new Error(`Unexpected root tag <${root.tagName}>`);
@@ -50,7 +51,7 @@ export async function cleanupSVGRoot(svg: SVG): Promise<void> {
 				if (value.slice(-2) === 'px') {
 					// Remove 'px'
 					const num = value.replace('px', '');
-					if (parseFloat(num) + '' === num) {
+					if (parseFloat(num).toString() === num) {
 						$root.attr(attr, num);
 					}
 				}
@@ -98,7 +99,7 @@ export async function cleanupSVGRoot(svg: SVG): Promise<void> {
 			return;
 		}
 
-		console.log(`Removing unexpected attribute on SVG: ${attr}`);
+		console.warn(`Removing unexpected attribute on SVG: ${attr}`);
 		$root.removeAttr(attr);
 	});
 
@@ -111,12 +112,18 @@ export async function cleanupSVGRoot(svg: SVG): Promise<void> {
 
 		$root.children().each((_index, child) => {
 			const $child = cheerio(child);
+			// eslint-disable-next-line @typescript-eslint/no-unsafe-enum-comparison
 			if (child.type !== 'tag') {
 				$child.appendTo($wrapper);
 				return;
 			}
 			const tagName = child.tagName;
-			if (tagName === 'style' || maskAndSymbolTags.has(tagName)) {
+			if (
+				tagName === 'style' ||
+				tagName === 'title' ||
+				reusableElementsWithPalette.has(tagName) ||
+				maskTags.has(tagName)
+			) {
 				// Do not wrap these elements
 				return;
 			}

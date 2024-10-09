@@ -1,14 +1,14 @@
-import { promises as fs } from 'fs';
+import { promises as fs, readFileSync } from 'fs';
 import { blankIconSet, IconSet } from '../icon-set';
 import { cleanupIconKeyword } from '../misc/keyword';
-import { scanDirectory } from '../misc/scan';
+import { scanDirectory, scanDirectorySync } from '../misc/scan';
 import { SVG } from '../svg';
-import { cleanupSVG } from '../svg/cleanup';
+import { CleanupSVGOptions, cleanupSVG } from '../svg/cleanup';
 
 /**
  * Entry for file
  */
-export interface ImportDirectpryFileEntry {
+export interface ImportDirectoryFileEntry {
 	// Path to scanned directory, ends with '/'
 	path: string;
 	// Sub-directory, ends with '/' (can be empty)
@@ -29,18 +29,25 @@ export interface ImportDirectpryFileEntry {
  * Callback can be asynchronous
  */
 type ImportDirectoryKeywordCallbackResult = string | undefined;
-export type ImportDirectoryKeywordCallback = (
-	file: ImportDirectpryFileEntry,
+
+type Callback<T> = (
+	file: ImportDirectoryFileEntry,
 	defaultKeyword: string,
 	iconSet: IconSet
-) =>
-	| ImportDirectoryKeywordCallbackResult
-	| Promise<ImportDirectoryKeywordCallbackResult>;
+) => T;
+
+type AsyncCallback<T> = Callback<T | Promise<T>>;
+
+export type ImportDirectoryKeywordCallback =
+	AsyncCallback<ImportDirectoryKeywordCallbackResult>;
+
+export type ImportDirectoryKeywordSyncCallback =
+	Callback<ImportDirectoryKeywordCallbackResult>;
 
 /**
  * Options
  */
-interface ImportDirectoryOptions {
+interface ImportDirectoryOptions<K> extends CleanupSVGOptions {
 	// Icon set prefix, you can set it later
 	prefix?: string;
 
@@ -48,70 +55,193 @@ interface ImportDirectoryOptions {
 	includeSubDirs?: boolean;
 
 	// Callback to get keyword for icon
-	keyword?: ImportDirectoryKeywordCallback;
+	keyword?: K;
 
 	// Does not throw error when icon fails to load (default: true)
-	ignoreImportErrors?: boolean;
+	ignoreImportErrors?: boolean | 'warn';
+}
+
+/**
+ * Internal function
+ */
+type KeywordCallback = (
+	params: Parameters<ImportDirectoryKeywordCallback>,
+	done: (result: ReturnType<ImportDirectoryKeywordCallback>) => void
+) => void;
+
+function importDir(
+	iconSet: IconSet,
+	options: Omit<ImportDirectoryOptions<unknown>, 'keyword'>,
+	getKeyword: KeywordCallback,
+	files: ImportDirectoryFileEntry[],
+	readFile: (filename: string, callback: (content: string) => void) => void,
+	done: (result: IconSet) => void
+): void {
+	// Import all files
+	let i = 0;
+	const next = () => {
+		if (i >= files.length) {
+			// Done
+			return done(iconSet);
+		}
+
+		const file = files[i];
+		i++;
+
+		// Get keyword
+		const defaultKeyword = cleanupIconKeyword(file.file);
+		getKeyword([file, defaultKeyword, iconSet], (keyword) => {
+			// Check it
+			if (typeof keyword !== 'string' || !keyword.length) {
+				return next();
+			}
+
+			// Read file
+			readFile(
+				file.path + file.subdir + file.file + file.ext,
+				(content) => {
+					try {
+						// Clean it up
+						const svg = new SVG(content);
+						cleanupSVG(svg, options);
+						iconSet.fromSVG(keyword, svg);
+					} catch (err) {
+						const ignore = options.ignoreImportErrors ?? false;
+
+						if (ignore === false || ignore === 'warn') {
+							let msg = `Failed to import "${keyword}"`;
+							if (err instanceof Error) {
+								msg += `: ${err.message}`;
+							}
+
+							if (ignore === false) {
+								throw new Error(msg);
+							} else {
+								console.warn(msg);
+							}
+						}
+					}
+
+					next();
+				}
+			);
+		});
+	};
+
+	next();
+}
+
+function isValidFile(item: ImportDirectoryFileEntry) {
+	return item.ext.toLowerCase() === '.svg';
 }
 
 /**
  * Import all icons from directory
  */
-export async function importDirectory(
+export function importDirectory(
 	path: string,
-	options: ImportDirectoryOptions = {}
+	options: ImportDirectoryOptions<ImportDirectoryKeywordCallback> = {}
 ): Promise<IconSet> {
-	// Find all files
-	const files = await scanDirectory(path, (ext, file, subdir, path) => {
-		if (ext.toLowerCase() === '.svg') {
-			const result: ImportDirectpryFileEntry = {
+	return new Promise((fulfill, reject) => {
+		scanDirectory(
+			path,
+			(ext, file, subdir, path) => {
+				const result: ImportDirectoryFileEntry = {
+					file,
+					ext,
+					subdir,
+					path,
+				};
+				return isValidFile(result) ? result : false;
+			},
+			options.includeSubDirs !== false
+		)
+			.then((files) => {
+				// Create blank icon set
+				const iconSet = blankIconSet(options.prefix || '');
+
+				// Import files
+				try {
+					importDir(
+						iconSet,
+						options,
+						(params, done) => {
+							if (options.keyword) {
+								const result = options.keyword(...params);
+								if (result instanceof Promise) {
+									result.then(done).catch(reject);
+								} else {
+									done(result);
+								}
+							} else {
+								// Return default keyword
+								done(params[1]);
+							}
+						},
+						files,
+						(filename, done) => {
+							fs.readFile(filename, 'utf8')
+								.then(done)
+								.catch(reject);
+						},
+						fulfill
+					);
+				} catch (err) {
+					reject(err);
+				}
+			})
+			.catch(reject);
+	});
+}
+
+/**
+ * Import all icons from directory synchronously
+ */
+export function importDirectorySync(
+	path: string,
+	options: ImportDirectoryOptions<ImportDirectoryKeywordSyncCallback> = {}
+): IconSet {
+	const files = scanDirectorySync(
+		path,
+		(ext, file, subdir, path) => {
+			const result: ImportDirectoryFileEntry = {
 				file,
 				ext,
 				subdir,
 				path,
 			};
-			return result;
-		}
-		return false;
-	});
+			return isValidFile(result) ? result : false;
+		},
+		options.includeSubDirs !== false
+	);
 
 	// Create blank icon set
 	const iconSet = blankIconSet(options.prefix || '');
 
-	// Import all files
-	for (let i = 0; i < files.length; i++) {
-		const file = files[i];
-
-		// Get keyword
-		const defaultKeyword = cleanupIconKeyword(file.file);
-		let keyword = options.keyword
-			? options.keyword(file, defaultKeyword, iconSet)
-			: defaultKeyword;
-		if (keyword instanceof Promise) {
-			keyword = await keyword;
-		}
-
-		// Check it
-		if (typeof keyword !== 'string' || !keyword.length) {
-			continue;
-		}
-
-		// Import icon, clean it up
-		try {
-			const content = await fs.readFile(
-				file.path + file.subdir + file.file + file.ext,
-				'utf8'
-			);
-			const svg = new SVG(content);
-			await cleanupSVG(svg);
-
-			iconSet.fromSVG(keyword, svg);
-		} catch (err) {
-			if (options.ignoreImportErrors !== false) {
-				throw err;
+	let isSync = true;
+	importDir(
+		iconSet,
+		options,
+		(params, done) => {
+			if (options.keyword) {
+				done(options.keyword(...params));
+			} else {
+				done(params[1]);
+			}
+		},
+		files,
+		(filename, done) => {
+			done(readFileSync(filename, 'utf8'));
+		},
+		() => {
+			if (!isSync) {
+				throw new Error(
+					'importDirectorySync supposed to be synchronous'
+				);
 			}
 		}
-	}
+	);
 
+	isSync = false;
 	return iconSet;
 }

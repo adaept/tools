@@ -1,7 +1,8 @@
 import { IconSet } from '.';
 import { findMatchingIcon } from './match';
+import { hasIconDataBeenModified } from './modified';
 
-// eslint-disable-next-line @typescript-eslint/no-unused-vars-experimental, @typescript-eslint/no-unused-vars
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 function assertNever(v: never) {
 	//
 }
@@ -70,7 +71,6 @@ export function mergeIconSets(oldIcons: IconSet, newIcons: IconSet): IconSet {
 							...props,
 							hidden: true,
 						},
-						categories: new Set(),
 					});
 				} else {
 					mergedIcons.setItem(name, {
@@ -90,6 +90,21 @@ export function mergeIconSets(oldIcons: IconSet, newIcons: IconSet): IconSet {
 	// Add old icons
 	for (const name in oldEntries) {
 		add(name);
+	}
+
+	// Keep old lastModified if possible
+	if (
+		oldIcons.lastModified &&
+		!hasIconDataBeenModified(oldIcons, mergedIcons)
+	) {
+		// Old and merged icon sets are identical: set last modification time to old icon set
+		mergedIcons.updateLastModified(oldIcons.lastModified);
+	} else if (
+		newIcons.lastModified &&
+		!hasIconDataBeenModified(newIcons, mergedIcons)
+	) {
+		// New and merged icon sets are identical: set last modificaiton time to new icon set
+		mergedIcons.updateLastModified(newIcons.lastModified);
 	}
 
 	return mergedIcons;

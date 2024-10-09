@@ -60,7 +60,7 @@ export async function compareDirectories(
 	// Check all files
 	for (let i = 0; i < files1.length; i++) {
 		const file = files1[i];
-		if (files2.indexOf(file) === -1) {
+		if (!files2.includes(file)) {
 			return false;
 		}
 
@@ -85,13 +85,13 @@ export async function compareDirectories(
 		}
 		if (ignoreNewLine) {
 			// Remove space before new line (\r\n -> \n), remove new line at the end
-			content1 = content1.replace(/\s+\n/g, '\n').trimRight();
-			content2 = content2.replace(/\s+\n/g, '\n').trimRight();
+			content1 = content1.replace(/\s+\n/g, '\n').trimEnd();
+			content2 = content2.replace(/\s+\n/g, '\n').trimEnd();
 		}
 		if (ignoreVersions && file.split('/').pop() === 'package.json') {
 			// Ignore versions in package.json
-			const data1 = JSON.parse(content1);
-			const data2 = JSON.parse(content2);
+			const data1 = JSON.parse(content1) as Record<string, unknown>;
+			const data2 = JSON.parse(content2) as Record<string, unknown>;
 			delete data1.version;
 			delete data2.version;
 			content1 = JSON.stringify(data1);

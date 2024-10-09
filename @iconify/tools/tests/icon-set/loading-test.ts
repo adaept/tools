@@ -2,59 +2,119 @@ import type { IconifyInfo, IconifyJSON } from '@iconify/types';
 import { IconSet } from '../../lib/icon-set';
 import type {
 	IconSetIcon,
+	IconSetIconVariation,
 	ResolvedIconifyIcon,
 } from '../../lib/icon-set/types';
-import { loadFixture } from '../load';
+import { loadFixture } from '../../lib/tests/helpers';
 
 describe('Loading icon set', () => {
 	test('Simple icon set', () => {
+		const lastModified = 123;
 		const iconSetData: IconifyJSON = {
 			prefix: 'foo',
+			lastModified,
 			icons: {
+				foo: {
+					body: '<g id="foo" />',
+				},
 				bar: {
-					body: '<g />',
+					body: '<g id="bar" />',
+				},
+			},
+			aliases: {
+				baz: {
+					parent: 'bar',
+					hFlip: true,
+				},
+				// invalid alias
+				foo: {
+					parent: 'bar',
 				},
 			},
 		};
 		const iconSet = new IconSet(iconSetData);
-		expect(iconSet.list()).toEqual(['bar']);
+		expect(iconSet.list()).toEqual(['foo', 'bar', 'baz']);
 
-		// Check entry
-		const bar: IconSetIcon = {
+		// Check entries
+		const foo: IconSetIcon = {
 			type: 'icon',
-			body: '<g />',
+			body: '<g id="foo" />',
 			props: {},
 			chars: new Set(),
 			categories: new Set(),
 		};
+		const bar: IconSetIcon = {
+			type: 'icon',
+			body: '<g id="bar" />',
+			props: {},
+			chars: new Set(),
+			categories: new Set(),
+		};
+		const baz: IconSetIconVariation = {
+			type: 'variation',
+			parent: 'bar',
+			props: {
+				hFlip: true,
+			},
+			chars: new Set(),
+		};
 		expect(iconSet.entries).toEqual({
+			foo,
 			bar,
+			baz,
 		});
+		expect(iconSet.lastModified).toBe(lastModified);
 
 		// Test exists()
+		expect(iconSet.exists('foo')).toBe(true);
 		expect(iconSet.exists('bar')).toBe(true);
-		expect(iconSet.exists('baz')).toBe(false);
+		expect(iconSet.exists('baz')).toBe(true);
+		expect(iconSet.exists('bar2')).toBe(false);
 
 		// Resolve icon
 		const expected: ResolvedIconifyIcon = {
-			body: '<g />',
+			body: '<g id="bar" />',
 		};
 		expect(iconSet.resolve('bar')).toEqual(expected);
 		expect(iconSet.resolve('bar', false)).toEqual(expected);
 
+		const expected2: ResolvedIconifyIcon = {
+			body: '<g id="foo" />',
+		};
+		expect(iconSet.resolve('foo')).toEqual(expected2);
+
 		// Export icon set
-		expect(iconSet.export()).toEqual(iconSetData);
+		expect(iconSet.export()).toEqual({
+			prefix: 'foo',
+			lastModified,
+			icons: {
+				foo: {
+					body: '<g id="foo" />',
+				},
+				bar: {
+					body: '<g id="bar" />',
+				},
+			},
+			aliases: {
+				baz: {
+					parent: 'bar',
+					hFlip: true,
+				},
+			},
+		});
 
 		// Count icons
-		expect(iconSet.count()).toBe(1);
+		expect(iconSet.count()).toBe(3);
 
 		// Info should be undefined
 		expect(iconSet.info).toBeUndefined();
 	});
 
 	test('With properties', () => {
+		const lastModified = 13579;
 		const iconSet = new IconSet({
 			prefix: 'foo',
+			lastModified,
 			icons: {
 				'bar-32': {
 					body: '<g />',
@@ -132,6 +192,8 @@ describe('Loading icon set', () => {
 			'bar-20': bar20,
 		});
 
+		expect(iconSet.lastModified).toBe(lastModified);
+
 		// Test exists()
 		expect(iconSet.exists('bar-32')).toBe(true);
 		expect(iconSet.exists('bar-20')).toBe(true);
@@ -170,6 +232,7 @@ describe('Loading icon set', () => {
 		// Export icon set
 		expect(iconSet.export()).toEqual({
 			prefix: 'foo',
+			lastModified,
 			icons: {
 				'bar-32': {
 					body: '<g />',
@@ -245,6 +308,9 @@ describe('Loading icon set', () => {
 		// Info should be undefined
 		expect(iconSet.info).toBeUndefined();
 
+		// Last modification time should not be set
+		expect(iconSet.lastModified).toBe(0);
+
 		// Check themes
 		expect(iconSet.prefixes).toEqual({
 			'16': '16px',
@@ -282,5 +348,25 @@ describe('Loading icon set', () => {
 			palette: false,
 		};
 		expect(iconSet.info).toEqual(expectedInfo);
+
+		// Last modification time should not be set
+		expect(iconSet.lastModified).toBe(0);
+	});
+
+	test('Fluent UI', async () => {
+		const iconSetData = JSON.parse(
+			await loadFixture('fluent.old.json')
+		) as IconifyJSON;
+		const iconSet = new IconSet(iconSetData);
+
+		expect(iconSet.resolve('accessibility-16-regular')).toEqual({
+			body: iconSetData.icons['accessibility-16-regular'].body,
+		});
+
+		expect(iconSet.resolve('accessibility-20-regular')).toEqual({
+			body: iconSetData.icons['accessibility-20-regular'].body,
+			width: 20,
+			height: 20,
+		});
 	});
 });

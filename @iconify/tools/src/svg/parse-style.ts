@@ -3,8 +3,17 @@ import { parseInlineStyle } from '../css/parse';
 import { tokensToString } from '../css/parser/export';
 import { getTokens } from '../css/parser/tokens';
 import { tokensTree } from '../css/parser/tree';
-import { maskAndSymbolTags } from './data/tags';
+import type {
+	CSSAtRuleToken,
+	CSSRuleToken,
+	CSSToken,
+} from '../css/parser/types';
 import { parseSVG, ParseSVGCallbackItem } from './parse';
+
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+function assertNever(v: never) {
+	//
+}
 
 /**
  * Item in callback
@@ -21,11 +30,35 @@ interface ParseSVGStyleCallbackItemInline
 interface ParseSVGStyleCallbackItemGlobal
 	extends ParseSVGStyleCallbackItemCommon {
 	type: 'global';
+	token: CSSRuleToken;
+	selectors: string[];
+	selectorTokens: CSSToken[];
+	prevTokens: (CSSToken | null)[];
+	nextTokens: CSSToken[];
+}
+
+interface ParseSVGStyleCallbackItemGlobalAtRule
+	extends ParseSVGStyleCallbackItemCommon {
+	token: CSSAtRuleToken;
+	childTokens: CSSToken[];
+	prevTokens: (CSSToken | null)[];
+	nextTokens: CSSToken[];
+}
+interface ParseSVGStyleCallbackItemGlobalGenericAtRule
+	extends ParseSVGStyleCallbackItemGlobalAtRule {
+	type: 'at-rule';
+}
+interface ParseSVGStyleCallbackItemGlobalKeyframesAtRule
+	extends ParseSVGStyleCallbackItemGlobalAtRule {
+	type: 'keyframes';
+	from: Record<string, string>;
 }
 
 export type ParseSVGStyleCallbackItem =
 	| ParseSVGStyleCallbackItemInline
-	| ParseSVGStyleCallbackItemGlobal;
+	| ParseSVGStyleCallbackItemGlobal
+	| ParseSVGStyleCallbackItemGlobalGenericAtRule
+	| ParseSVGStyleCallbackItemGlobalKeyframesAtRule;
 
 /**
  * Result: undefined to remove item, string to change/keep item
@@ -37,14 +70,16 @@ export type ParseSVGStyleCallbackResult = string | undefined;
  */
 export type ParseSVGStyleCallback = (
 	item: ParseSVGStyleCallbackItem
-) => ParseSVGStyleCallbackResult | Promise<ParseSVGStyleCallbackResult>;
+) => ParseSVGStyleCallbackResult;
 
 /**
- * Options
+ * Check callback result for Promise instance, which used to be supported in old version
  */
-interface ParseSVGStyleOptions {
-	// Skip masks, false by default. Useful when parsing icon palette
-	skipMasks?: boolean;
+function assertNotOldCode(value: unknown) {
+	if (value instanceof Promise) {
+		// Old code
+		throw new Error('parseSVGStyle does not support async callbacks');
+	}
 }
 
 /**
@@ -52,20 +87,15 @@ interface ParseSVGStyleOptions {
  *
  * This function finds CSS in SVG, parses it, calls callback for each rule.
  * Callback should return new value (string) or undefined to remove rule.
- * Callback can be asynchronous.
  */
-export async function parseSVGStyle(
-	svg: SVG,
-	callback: ParseSVGStyleCallback,
-	options: ParseSVGStyleOptions = {}
-): Promise<void> {
-	return parseSVG(svg, async (item) => {
+export function parseSVGStyle(svg: SVG, callback: ParseSVGStyleCallback): void {
+	parseSVG(svg, (item) => {
 		const tagName = item.tagName;
 		const $element = item.$element;
 
-		if (tagName === 'style') {
-			// Style tag
-			const content = $element.html();
+		// Parse <style> tag
+		function parseStyleItem() {
+			const content = $element.text();
 			if (typeof content !== 'string') {
 				$element.remove();
 				return;
@@ -79,61 +109,230 @@ export async function parseSVGStyle(
 
 			// Parse all tokens
 			let changed = false;
-			const newTokens: typeof tokens = [];
-			for (let i = 0; i < tokens.length; i++) {
-				const token = tokens[i];
-				if (token.type !== 'rule') {
-					newTokens.push(token);
-					continue;
+			const selectorStart: number[] = [];
+			let newTokens: (CSSToken | null)[] = [];
+
+			while (tokens.length) {
+				const token = tokens.shift();
+				if (!token) {
+					break;
 				}
 
-				const value = token.value;
-				let result = callback({
-					type: 'global',
-					prop: token.prop,
-					value,
-				});
-				if (result instanceof Promise) {
-					result = await result;
-				}
+				switch (token.type) {
+					case 'selector':
+						selectorStart.push(newTokens.length);
+						newTokens.push(token);
+						break;
 
-				if (result !== void 0) {
-					if (result !== value) {
-						changed = true;
-						token.value = result;
+					case 'close':
+						selectorStart.pop();
+						newTokens.push(token);
+						break;
+
+					case 'at-rule': {
+						selectorStart.push(newTokens.length);
+
+						const prop = token.rule;
+						const value = token.value;
+
+						const isAnimation =
+							prop === 'keyframes' ||
+							(prop.slice(0, 1) === '-' &&
+								prop.split('-').pop() === 'keyframes');
+
+						// Get all child tokens, including closing token
+						const childTokens: CSSToken[] = [];
+						const animationRules = Object.create(null) as Record<
+							string,
+							string
+						>;
+						let depth = 1;
+						let index = 0;
+						let isFrom = false;
+
+						while (depth > 0) {
+							const childToken = tokens[index];
+							index++;
+							if (!childToken) {
+								throw new Error(
+									'Something went wrong parsing CSS'
+								);
+							}
+							childTokens.push(childToken);
+							switch (childToken.type) {
+								case 'close': {
+									depth--;
+									isFrom = false;
+									break;
+								}
+								case 'selector': {
+									depth++;
+									if (isAnimation) {
+										const rule = childToken.code;
+										if (rule === 'from' || rule === '0%') {
+											isFrom = true;
+										}
+									}
+									break;
+								}
+
+								case 'at-rule': {
+									depth++;
+									if (isAnimation) {
+										throw new Error(
+											'Nested at-rule in keyframes ???'
+										);
+									}
+									break;
+								}
+
+								case 'rule': {
+									if (isAnimation && isFrom) {
+										animationRules[childToken.prop] =
+											childToken.value;
+									}
+									break;
+								}
+
+								default:
+									assertNever(childToken);
+							}
+						}
+						const skipCount = childTokens.length;
+
+						const result = callback(
+							isAnimation
+								? {
+										type: 'keyframes',
+										prop,
+										value,
+										token,
+										childTokens,
+										from: animationRules,
+										prevTokens: newTokens,
+										nextTokens: tokens.slice(0),
+									}
+								: {
+										type: 'at-rule',
+										prop,
+										value,
+										token,
+										childTokens,
+										prevTokens: newTokens,
+										nextTokens: tokens.slice(0),
+									}
+						);
+
+						if (result !== undefined) {
+							assertNotOldCode(result);
+
+							if (isAnimation) {
+								// Allow changing animation name
+								if (result !== value) {
+									changed = true;
+									token.value = result;
+								}
+								newTokens.push(token);
+
+								// Skip all child tokens, copy them as is
+								for (let i = 0; i < skipCount; i++) {
+									tokens.shift();
+								}
+								newTokens = newTokens.concat(childTokens);
+							} else {
+								// Not animation
+								if (result !== value) {
+									throw new Error(
+										'Changing value for at-rule is not supported'
+									);
+								}
+								newTokens.push(token);
+							}
+						} else {
+							// Delete token and all child tokens
+							changed = true;
+							for (let i = 0; i < skipCount; i++) {
+								tokens.shift();
+							}
+						}
+
+						break;
 					}
-					newTokens.push(token);
-				} else {
-					// Delete token
-					changed = true;
+
+					case 'rule': {
+						const value = token.value;
+						const selectorTokens = selectorStart
+							.map((index) => newTokens[index])
+							.filter((item) => item !== null) as CSSToken[];
+						const result = callback({
+							type: 'global',
+							prop: token.prop,
+							value,
+							token,
+							selectorTokens,
+							selectors: selectorTokens.reduce(
+								(prev: string[], current: CSSToken) => {
+									switch (current.type) {
+										case 'selector': {
+											return prev.concat(
+												current.selectors
+											);
+										}
+									}
+									return prev;
+								},
+								[] as string[]
+							),
+							prevTokens: newTokens,
+							nextTokens: tokens.slice(0),
+						});
+						if (result !== undefined) {
+							assertNotOldCode(result);
+
+							if (result !== value) {
+								changed = true;
+								token.value = result;
+							}
+							newTokens.push(token);
+						} else {
+							// Delete token
+							changed = true;
+						}
+
+						break;
+					}
+
+					default:
+						assertNever(token);
 				}
 			}
 
-			if (!changed) {
-				return;
-			}
+			// Done
+			if (changed) {
+				// Update style
+				const tree = tokensTree(
+					newTokens.filter((token) => token !== null) as CSSToken[]
+				);
 
-			// Update style
-			const tree = tokensTree(newTokens);
-			if (!tree.length) {
-				// Empty
-				$element.remove();
-				return;
+				if (!tree.length) {
+					// Empty
+					$element.remove();
+				} else {
+					const newContent = tokensToString(tree);
+					item.$element.text('\n' + newContent);
+				}
 			}
-
-			const newContent = tokensToString(tree);
-			item.$element.text(newContent);
-			return;
 		}
 
-		// Skip masks
-		if (options.skipMasks && maskAndSymbolTags.has(tagName)) {
+		// Parse <style> tag
+		if (tagName === 'style') {
+			parseStyleItem();
 			return;
 		}
 
 		// Parse style
 		const attribs = item.element.attribs;
-		if (attribs.style === void 0) {
+		if (attribs.style === undefined) {
 			return;
 		}
 
@@ -144,24 +343,21 @@ export async function parseSVGStyle(
 			return;
 		}
 
-		const props = Object.keys(parsedStyle);
+		// Parse all props
 		let changed = false;
-		for (let i = 0; i < props.length; i++) {
-			const prop = props[i];
+		for (const prop in parsedStyle) {
 			const value = parsedStyle[prop];
-			let result = callback({
+			const result = callback({
 				type: 'inline',
 				prop,
 				value,
 				item,
 			});
-			if (result instanceof Promise) {
-				result = await result;
-			}
+			assertNotOldCode(result);
 
 			if (result !== value) {
 				changed = true;
-				if (result === void 0) {
+				if (result === undefined) {
 					delete parsedStyle[prop];
 				} else {
 					parsedStyle[prop] = result;
@@ -169,17 +365,16 @@ export async function parseSVGStyle(
 			}
 		}
 
-		// Update style
-		if (!changed) {
-			return;
-		}
-		const newStyle = Object.keys(parsedStyle)
-			.map((key) => key + ':' + parsedStyle[key] + ';')
-			.join('');
-		if (!newStyle.length) {
-			$element.removeAttr('style');
-		} else {
-			$element.attr('style', newStyle);
+		// Done
+		if (changed) {
+			const newStyle = Object.keys(parsedStyle)
+				.map((key) => key + ':' + parsedStyle[key] + ';')
+				.join('');
+			if (!newStyle.length) {
+				$element.removeAttr('style');
+			} else {
+				$element.attr('style', newStyle);
+			}
 		}
 	});
 }

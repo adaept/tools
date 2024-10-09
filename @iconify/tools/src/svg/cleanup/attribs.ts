@@ -1,16 +1,19 @@
-import type { SVG } from '..';
+import type { SVG } from '../../svg';
 import {
 	badAttributes,
 	badAttributePrefixes,
 	badSoftwareAttributes,
+	tagSpecificPresentationalAttributes,
 } from '../data/attributes';
+import { defsTag } from '../data/tags';
 import { parseSVG } from '../parse';
 
 /**
  * Remove useless attributes
  */
-export async function removeBadAttributes(svg: SVG): Promise<void> {
-	await parseSVG(svg, (item) => {
+export function removeBadAttributes(svg: SVG): void {
+	parseSVG(svg, (item) => {
+		const tagName = item.tagName;
 		const attribs = item.element.attribs;
 		const $element = item.$element;
 
@@ -27,6 +30,15 @@ export async function removeBadAttributes(svg: SVG): Promise<void> {
 				return;
 			}
 
+			// Attributes on <defs> aren't passed to child nodes, so remove everything)
+			if (
+				defsTag.has(tagName) &&
+				!tagSpecificPresentationalAttributes[tagName].has(attr)
+			) {
+				$element.removeAttr(attr);
+				return;
+			}
+
 			// Check for namespace
 			const nsParts = attr.split(':');
 			if (nsParts.length > 1) {
@@ -35,7 +47,7 @@ export async function removeBadAttributes(svg: SVG): Promise<void> {
 				switch (namespace) {
 					case 'xlink': {
 						// Deprecated: use without namespace
-						if (attribs[newAttr] === void 0) {
+						if (attribs[newAttr] === undefined) {
 							$element.attr(newAttr, attribs[attr]);
 						}
 						break;

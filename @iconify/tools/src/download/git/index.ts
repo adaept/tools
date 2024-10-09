@@ -1,11 +1,13 @@
-import { promises as fs } from 'fs';
 import {
 	ExportTargetOptions,
 	prepareDirectoryForExport,
 } from '../../export/helpers/prepare';
 import { execAsync } from '../../misc/exec';
 import type { DocumentNotModified } from '../types/modified';
+import type { DownloadSourceMixin } from '../types/sources';
+import { getGitRepoBranch } from './branch';
 import { getGitRepoHash } from './hash';
+import { resetGitRepoContents } from './reset';
 
 interface IfModifiedSinceOption {
 	// Download only if it was modified since hash
@@ -13,7 +15,7 @@ interface IfModifiedSinceOption {
 
 	// Important: this function doesn't verify if target directory has correct branch,
 	// so do not use the same target directory for different repos or branches.
-	ifModifiedSince: string | true;
+	ifModifiedSince: string | true | DownloadGitRepoResult;
 }
 
 /**
@@ -35,8 +37,8 @@ export interface DownloadGitRepoOptions
 /**
  * Result
  */
-export interface DownloadGitRepoResult {
-	target: string;
+export interface DownloadGitRepoResult extends DownloadSourceMixin<'git'> {
+	contentsDir: string;
 	hash: string;
 }
 
@@ -55,8 +57,9 @@ export async function downloadGitRepo(
 	const { remote, branch } = options;
 
 	// Check for last commit
-	const hasHashInTarget = options.target.indexOf('{hash}') !== -1;
-	if (options.ifModifiedSince || hasHashInTarget) {
+	const hasHashInTarget = options.target.includes('{hash}');
+	const ifModifiedSince = options.ifModifiedSince;
+	if (ifModifiedSince || hasHashInTarget) {
 		// Get actual hash
 		const result = await execAsync(
 			`git ls-remote ${remote} --branch ${branch}`
@@ -67,42 +70,54 @@ export async function downloadGitRepo(
 			options.target = options.target.replace('{hash}', latestHash);
 		}
 
-		if (options.ifModifiedSince) {
-			try {
+		try {
+			// Make sure correct branch is checked out. This will throw error if branch is not available
+			await getGitRepoBranch(options, branch);
+
+			if (ifModifiedSince) {
 				// Get expected hash
-				const expectedHash =
-					options.ifModifiedSince === true
+				const expectedHash: string | null =
+					ifModifiedSince === true
 						? await getGitRepoHash(options)
-						: options.ifModifiedSince;
+						: typeof ifModifiedSince === 'string'
+						? ifModifiedSince
+						: ifModifiedSince.downloadType === 'git'
+						? ifModifiedSince.hash
+						: null;
 
 				if (latestHash === expectedHash) {
+					// Reset contents before returning
+					await resetGitRepoContents(options.target);
 					return 'not_modified';
 				}
-			} catch (err) {
-				//
 			}
+		} catch {
+			//
 		}
 	}
 
 	// Prepare target directory
-	const target = (options.target = await prepareDirectoryForExport(options));
+	const target = (options.target = await prepareDirectoryForExport({
+		...options,
+		// Always cleanup
+		cleanup: true,
+	}));
 
-	// Check if directory is empty if directory wasn't cleaned up
-	const files = options.cleanup ? [] : await fs.readdir(target);
-	if (!files.length) {
-		if (options.log) {
-			console.log(`Cloning ${remote}#${branch} to ${target}`);
-		}
-		await execAsync(
-			`git clone --branch ${branch} --no-tags --depth 1 ${remote} "${target}"`
-		);
+	// Clone repository
+	if (options.log) {
+		console.log(`Cloning ${remote}#${branch} to ${target}`);
 	}
+	await execAsync(
+		`git clone --branch ${branch} --no-tags --depth 1 ${remote} "${target}"`
+	);
 
-	// Get latest hash
+	// Get latest hash and make sure correct branch is available
 	const hash = await getGitRepoHash(options);
+	await getGitRepoBranch(options, branch);
 
 	return {
-		target,
+		downloadType: 'git',
+		contentsDir: target,
 		hash,
 	};
 }

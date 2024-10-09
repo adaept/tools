@@ -1,3 +1,4 @@
+import type { IconifyJSON } from '@iconify/types';
 import { promises as fs } from 'fs';
 import { exportJSONPackage } from '../../lib/export/json-package';
 import { IconSet } from '../../lib/icon-set';
@@ -15,9 +16,11 @@ async function exists(filename: string): Promise<boolean> {
 
 describe('Exporting to JSON package', () => {
 	test('Few icons', async () => {
+		const lastModified = 12345;
 		const targetDir = 'cache/export-json-package-test';
 		const iconSet = new IconSet({
 			prefix: 'foo',
+			lastModified,
 			icons: {
 				maximize: {
 					body: '<g fill="currentColor"><path d="M3 3v10h10V3H3zm9 9H4V4h8v8z"/></g>',
@@ -70,9 +73,17 @@ describe('Exporting to JSON package', () => {
 		// No metadata or characters to check
 		const actualData = JSON.parse(
 			await fs.readFile(`${targetDir}/icons.json`, 'utf8')
-		);
+		) as IconifyJSON;
 		const expectedData = iconSet.export();
 		expect(actualData).toEqual(expectedData);
+
+		// Check package.json to make sure it uses wildcard
+		const packageContent = JSON.parse(
+			await fs.readFile(`${targetDir}/package.json`, 'utf8')
+		) as Record<string, unknown>;
+		expect(packageContent['dependencies']).toEqual({
+			'@iconify/types': '*',
+		});
 
 		// Clean up
 		await fs.rm(targetDir, {

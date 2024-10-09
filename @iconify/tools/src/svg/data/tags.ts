@@ -59,9 +59,14 @@ export const styleTag = new Set(['style']);
 export const defsTag = new Set(['defs']);
 
 /**
- * Masks: colors are ignored, child elements must have id
+ * Masks: colors are ignored, elements must have id
  */
-export const maskAndSymbolTags = new Set(['clipPath', 'mask', 'symbol']);
+export const maskTags = new Set(['clipPath', 'mask']);
+
+/**
+ * Symbol
+ */
+export const symbolTag = new Set(['symbol']);
 
 /**
  * SVG shapes
@@ -87,7 +92,7 @@ export const useTag = new Set(['use']);
 export const groupTag = new Set(['g']);
 
 /**
- * Marker, must be inside <defs>
+ * Marker, should be inside <defs>
  */
 export const markerTag = new Set(['marker']);
 
@@ -105,7 +110,7 @@ export const animateTags = new Set([
 export const animateMotionChildTags = new Set(['mpath']);
 
 /**
- * Gradients, must be inside <defs>
+ * Gradients, should be inside <defs>
  */
 export const gradientTags = new Set(['linearGradient', 'radialGradient']);
 
@@ -115,7 +120,7 @@ export const gradientTags = new Set(['linearGradient', 'radialGradient']);
 export const gradientChildTags = new Set(['stop']);
 
 /**
- * Pattern, must be inside <defs>
+ * Pattern, should be inside <defs>
  */
 export const patternTag = new Set(['pattern']);
 
@@ -164,12 +169,18 @@ export const feMergeChildTags = new Set(['feMergeNode']);
 
 /***** Combination of tags *****/
 /**
- * Tags that can be used only inside <defs>
+ * Reusable elements that use colors
+ *
+ * Most are used via color attributes like `fill`
+ * Some are used via custom attributes like `marker-start`
+ * Filter is used via `filter`
  */
-export const tagsInsideDefs = new Set([
+export const reusableElementsWithPalette = new Set([
 	...gradientTags,
 	...patternTag,
 	...markerTag,
+	...symbolTag,
+	...filterTag,
 ]);
 
 /**
@@ -178,7 +189,8 @@ export const tagsInsideDefs = new Set([
 export const allValidTags = new Set([
 	...styleTag,
 	...defsTag,
-	...maskAndSymbolTags,
+	...maskTags,
+	...symbolTag,
 	...shapeTags,
 	...useTag,
 	...groupTag,

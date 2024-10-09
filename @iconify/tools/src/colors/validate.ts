@@ -10,13 +10,13 @@ import type { FindColorsResult } from './parse';
  *
  * Throws exception on error
  */
-export async function validateColors(
+export function validateColors(
 	svg: SVG,
 	expectMonotone: boolean,
 	options?: ParseColorsOptions
-): Promise<FindColorsResult> {
+): FindColorsResult {
 	// Parse colors
-	const palette = await parseColors(svg, options);
+	const palette = parseColors(svg, options);
 
 	// Check palette
 	palette.colors.forEach((color) => {
@@ -47,10 +47,16 @@ export async function validateColors(
 				}
 				return;
 
-			// Do not allow other colors
 			default:
-				throw new Error('Unexpected color: ' + colorToString(color));
+				// Allow url()
+				if (color.type !== 'function' || color.func !== 'url') {
+					// Do not allow other colors
+					throw new Error(
+						'Unexpected color: ' + colorToString(color)
+					);
+				}
 		}
 	});
+
 	return palette;
 }

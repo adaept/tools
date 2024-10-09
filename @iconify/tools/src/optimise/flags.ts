@@ -75,6 +75,17 @@ function cleanPath(path: string): string {
 			});
 			currentArgs = [];
 			canParseCommandOrComma = true;
+
+			// Change command for lines after moving
+			switch (currentCommand) {
+				case 'M':
+					currentCommand = 'L';
+					break;
+
+				case 'm':
+					currentCommand = 'l';
+					break;
+			}
 		}
 	};
 
@@ -83,16 +94,14 @@ function cleanPath(path: string): string {
 		if (currentNumber !== '' && currentCommandType) {
 			let value = Number(currentNumber);
 			if (isNaN(value)) {
-				throw new Error(
-					'Invalid number "' + currentNumber + '" at ' + i
-				);
+				throw new Error(`Invalid number "${currentNumber}" at ${i}`);
 			}
 
 			// Validate arc arguments
 			if (currentCommandType === ARC) {
 				if (currentArgs.length < 2 && value <= 0) {
 					throw new Error(
-						'Expected positive number, got "' + value + '" at ' + i
+						`Expected positive number, got "${value}" at ${i}`
 					);
 				}
 
@@ -115,7 +124,7 @@ function cleanPath(path: string): string {
 						// Valid flag
 						if (isNaN(newValue)) {
 							throw new Error(
-								'Invalid number "' + currentNumber + '" at ' + i
+								`Invalid number "${currentNumber}" at ${i}`
 							);
 						}
 						currentArgs.push(slice);
@@ -125,7 +134,7 @@ function cleanPath(path: string): string {
 					}
 
 					throw new Error(
-						'Expected a flag, got "' + currentNumber + '" at ' + i
+						`Expected a flag, got "${currentNumber}" at ${i}`
 					);
 				}
 			}
@@ -203,12 +212,12 @@ function cleanPath(path: string): string {
 
 		// Expecting new command, so argument should be empty
 		if (currentArgs.length > 0) {
-			throw new Error('Unexpected command at ' + i);
+			throw new Error(`Unexpected command at ${i}`);
 		}
 
 		// Test comma, reset value
 		if (!canParseCommandOrComma) {
-			throw new Error('Command cannot follow comma at ' + i + '');
+			throw new Error(`Command cannot follow comma at ${i}`);
 		}
 		canParseCommandOrComma = false;
 
@@ -282,7 +291,7 @@ function cleanPath(path: string): string {
 				break;
 
 			default:
-				throw new Error('Unexpected character "' + char + '" at ' + i);
+				throw new Error(`Unexpected character "${char}" at ${i}`);
 		}
 	}
 
@@ -295,7 +304,7 @@ function cleanPath(path: string): string {
 			throw new Error('Empty path');
 		}
 		if (currentArgs.length !== argCount[currentCommandType]) {
-			throw new Error('Unexpected end of path at ' + i);
+			throw new Error(`Unexpected end of path at ${i}`);
 		}
 		finishCommand();
 	}
@@ -322,7 +331,7 @@ function cleanPath(path: string): string {
 						}
 
 						// No space if previous entry had dot
-						if (item.params[index - 1].indexOf('.') !== -1) {
+						if (item.params[index - 1].includes('.')) {
 							break;
 						}
 
@@ -341,8 +350,8 @@ function cleanPath(path: string): string {
 /**
  * De-optimise paths. Compressed paths are still not supported by some software.
  */
-export async function deOptimisePaths(svg: SVG): Promise<void> {
-	await parseSVG(svg, (item) => {
+export function deOptimisePaths(svg: SVG) {
+	parseSVG(svg, (item) => {
 		if (item.tagName !== 'path') {
 			return;
 		}

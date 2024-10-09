@@ -1,7 +1,7 @@
 import { SVG } from '../../lib/svg';
 import { blankIconSet } from '../../lib/icon-set';
 import { checkBadTags } from '../../lib/svg/cleanup/bad-tags';
-import { loadFixture } from '../load';
+import { loadFixture } from '../../lib/tests/helpers';
 
 const goodExamples: string[] = [
 	'animate.svg',
@@ -45,22 +45,25 @@ const badExamples: Record<string, string> = {
 	'bad/svg.svg': 'svg',
 };
 
+// Icons that contain attributes on <svg> element and should throw exception when attempting to add to icon set
+const throwToSVG: Set<string> = new Set(['bad/svg.svg']);
+
 describe('Checking tags tree', () => {
 	goodExamples.forEach((name) => {
 		test(name, async () => {
-			const content = await loadFixture('elements/' + name);
+			const content = await loadFixture(`elements/${name}`);
 			const svg = new SVG(content);
-			await checkBadTags(svg);
+			checkBadTags(svg);
 		});
 	});
 
 	// Bad elements
 	Object.keys(badExamples).forEach((name) => {
 		test(name, async () => {
-			const content = await loadFixture('elements/' + name);
+			const content = await loadFixture(`elements/${name}`);
 			const svg = new SVG(content);
 			try {
-				await checkBadTags(svg);
+				checkBadTags(svg);
 			} catch (err) {
 				const error = err as Error;
 				expect(error.message).toBe(
@@ -80,24 +83,34 @@ describe('Checking tags tree', () => {
 		const names = Object.keys(badExamples);
 		for (let i = 0; i < names.length; i++) {
 			const name = names[i];
-			const content = await loadFixture('elements/' + name);
+			const content = await loadFixture(`elements/${name}`);
 			const svg = new SVG(content);
-			toTest.add(name);
-			iconSet.fromSVG(name, svg);
+
+			try {
+				iconSet.fromSVG(name, svg);
+				toTest.add(name);
+
+				if (throwToSVG.has(name)) {
+					throw new Error(`Expected exception when loading ${name}`);
+				}
+			} catch (err) {
+				if (!throwToSVG.has(name)) {
+					console.error(err);
+					throw new Error(`Unexpected exception in ${name}`);
+				}
+			}
 		}
 
 		// Run test
-		let isAsync = true;
-		await iconSet.forEach(async (name, type) => {
+		iconSet.forEachSync((name, type) => {
 			expect(type).toBe('icon');
-			expect(isAsync).toBe(true);
 			toTest.delete(name);
 
 			const svg = iconSet.toSVG(name) as SVG;
 			expect(svg).not.toBeNull();
 
 			try {
-				await checkBadTags(svg);
+				checkBadTags(svg);
 			} catch (err) {
 				const error = err as Error;
 				expect(error.message).toBe(
@@ -108,7 +121,6 @@ describe('Checking tags tree', () => {
 			throw new Error(`Expected exception in ${name}`);
 		});
 
-		isAsync = false;
 		expect(toTest.size).toBe(0);
 	});
 });

@@ -7,12 +7,13 @@ import {
 import { downloadFile } from '../api/download';
 import { untar } from '../helpers/untar';
 import type { DocumentNotModified } from '../types/modified';
+import type { DownloadSourceMixin } from '../types/sources';
 import { getNPMVersion, getPackageVersion } from './version';
 
 interface IfModifiedSinceOption {
 	// Clone only if it was modified since version
 	// If true, checked against latest file stored in target directory
-	ifModifiedSince: string | true;
+	ifModifiedSince: string | true | DownloadNPMPackageResult;
 }
 
 /**
@@ -34,9 +35,9 @@ export interface DownloadNPMPackageOptions
 /**
  * Result
  */
-export interface DownloadNPMPackageResult {
+export interface DownloadNPMPackageResult extends DownloadSourceMixin<'npm'> {
 	rootDir: string;
-	actualDir: string;
+	contentsDir: string;
 	version: string;
 }
 
@@ -53,24 +54,40 @@ export async function downloadNPMPackage(
 	options: DownloadNPMPackageOptions
 ): Promise<DownloadNPMPackageResult | DocumentNotModified> {
 	const rootDir = (options.target = normalizeDir(options.target));
-	const actualDir = rootDir + '/package';
+	const contentsDir = rootDir + '/package';
 
 	// Get latest location
 	const versionInfo = await getNPMVersion(options);
 	const version = versionInfo.version;
 
 	// Check downloaded copy
-	if (options.ifModifiedSince) {
+	const ifModifiedSince = options.ifModifiedSince;
+	if (ifModifiedSince) {
 		try {
-			const expectedVersion =
-				options.ifModifiedSince === true
-					? await getPackageVersion(actualDir)
-					: options.ifModifiedSince;
+			let expectedVersion: string | null;
+			if (typeof ifModifiedSince === 'object') {
+				// Make sure result object matches
+				if (
+					ifModifiedSince.downloadType === 'npm' &&
+					ifModifiedSince.rootDir === rootDir &&
+					ifModifiedSince.contentsDir === contentsDir
+				) {
+					expectedVersion = ifModifiedSince.version;
+				} else {
+					expectedVersion = null;
+				}
+			} else {
+				expectedVersion =
+					ifModifiedSince === true
+						? await getPackageVersion(contentsDir)
+						: ifModifiedSince;
+			}
 			if (version === expectedVersion) {
 				return 'not_modified';
 			}
 		} catch (err) {
-			//
+			// Clean up on error
+			options.cleanup = true;
 		}
 	}
 
@@ -88,7 +105,7 @@ export async function downloadNPMPackage(
 	// Check if archive exists
 	let archiveExists = false;
 	try {
-		const stat = await fs.lstat(archiveTarget);
+		const stat = await fs.stat(archiveTarget);
 		archiveExists = stat.isFile();
 	} catch (err) {
 		//
@@ -112,7 +129,7 @@ export async function downloadNPMPackage(
 
 	// Remove old unpacked file
 	await prepareDirectoryForExport({
-		target: actualDir,
+		target: contentsDir,
 		cleanup: true,
 	});
 
@@ -123,8 +140,9 @@ export async function downloadNPMPackage(
 	await untar(archiveTarget, rootDir);
 
 	return {
+		downloadType: 'npm',
 		rootDir,
-		actualDir,
+		contentsDir,
 		version,
 	};
 }

@@ -12,6 +12,34 @@ First install it by running this command:
 npm install @iconify/tools --save
 ```
 
+## Functions
+
+Functions incuded in Iconify Tools:
+
+-   Download packages from git repository, GitHub API, GitLab API, NPM repository.
+-   Import SVGs from directory (and downloaded package), Figma API.
+-   Clean up, optimise, validate icons.
+-   Parse or change icon palette.
+-   Export icon sets in various formats.
+
+See [Iconify Tools documentation](https://iconify.design/docs/libraries/tools/).
+
+### Limitations
+
+This library is optinionated.
+
+It does not allow the following content in icons:
+
+-   Scripts and event listeners.
+-   Any remote resources: images, fonts, links, etc...
+-   Raster images. They do not belong in scalable icons.
+-   Text. Text is rendered differently in various operating systems, so it should not be used in SVG. Convert text to shapes.
+-   All tags and attributes that are not approved are removed, including all XML namespaces.
+
+All limitations listed above are by design.
+
+Iconify Tools library is designed to export icons that are safe to use in any environment and render identically for all users.
+
 ## Example
 
 The following code example does the following:
@@ -36,7 +64,7 @@ import { parseColors, isEmptyColor } from '@iconify/tools/lib/colors/parse';
 	});
 
 	// Validate, clean up, fix palette and optimise
-	await iconSet.forEach(async (name, type) => {
+	iconSet.forEachSync((name, type) => {
 		if (type !== 'icon') {
 			return;
 		}
@@ -50,8 +78,8 @@ import { parseColors, isEmptyColor } from '@iconify/tools/lib/colors/parse';
 
 		// Clean up and optimise icons
 		try {
-			await cleanupSVG(svg);
-			await parseColors(svg, {
+			cleanupSVG(svg);
+			parseColors(svg, {
 				defaultColor: 'currentColor',
 				callback: (attr, colorStr, color) => {
 					return !color || isEmptyColor(color)
@@ -59,7 +87,7 @@ import { parseColors, isEmptyColor } from '@iconify/tools/lib/colors/parse';
 						: 'currentColor';
 				},
 			});
-			await runSVGO(svg);
+			runSVGO(svg);
 		} catch (err) {
 			// Invalid icon
 			console.error(`Error parsing ${name}:`, err);
@@ -81,10 +109,18 @@ import { parseColors, isEmptyColor } from '@iconify/tools/lib/colors/parse';
 
 ## Documentation
 
-Full documentation is too big for simple README file. See [Iconify Tools documentation](https://docs.iconify.design/tools/tools2/) for detailed documentation with code samples.
+Full documentation is too big for simple README file. See [Iconify Tools documentation](https://iconify.design/docs/libraries/tools/) for detailed documentation with code samples.
+
+## Sponsors
+
+<p align="center">
+  <a href="https://github.com/sponsors/cyberalien">
+    <img src='https://cyberalien.github.io/static/sponsors.svg'/>
+  </a>
+</p>
 
 ## License
 
 Library is released with MIT license.
 
-© 2021 Vjacheslav Trushkin
+© 2021-PRESENT Vjacheslav Trushkin

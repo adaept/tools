@@ -1,4 +1,9 @@
-import cheerio from 'cheerio';
+import * as cheerio from 'cheerio';
+import type { IconifyIcon } from '@iconify/types';
+import { trimSVG, iconToSVG, prettifySVG } from '@iconify/utils';
+import type { CommonIconProps } from '../icon-set/types';
+import type { IconifyIconCustomisations } from '@iconify/utils/lib/customisations/defaults';
+import type { CheerioElement } from '../misc/cheerio';
 
 export interface ViewBox {
 	left: number;
@@ -7,12 +12,15 @@ export interface ViewBox {
 	height: number;
 }
 
+// Re-export types
+export type { IconifyIconCustomisations, IconifyIcon };
+
 /**
  * SVG class, used to manipulate icon content.
  */
 export class SVG {
 	// Cheerio tree, initialized in load()
-	public $svg!: cheerio.Root;
+	public $svg!: cheerio.CheerioAPI;
 
 	// Dimensions, initialized in load()
 	public viewBox!: ViewBox;
@@ -27,24 +35,44 @@ export class SVG {
 	/**
 	 * Get SVG as string
 	 */
-	toString(): string {
+	toString(customisations?: IconifyIconCustomisations): string {
+		// Build icon if customisations are set
+		if (customisations) {
+			const data = iconToSVG(this.getIcon(), customisations);
+
+			// Generate SVG
+			let svgAttributes = ' xmlns="http://www.w3.org/2000/svg"';
+			if (data.body.includes('xlink:')) {
+				svgAttributes += ' xmlns:xlink="http://www.w3.org/1999/xlink"';
+			}
+			for (const key in data.attributes) {
+				const value =
+					data.attributes[key as keyof typeof data.attributes];
+				// eslint-disable-next-line @typescript-eslint/restrict-plus-operands
+				svgAttributes += ' ' + key + '="' + value + '"';
+			}
+
+			return '<svg' + svgAttributes + '>' + data.body + '</svg>';
+		}
+
+		// Get icon as is if customisations are not set
 		const $root = this.$svg(':root');
 		const box = this.viewBox;
 
 		// Add missing viewBox attribute
-		if ($root.attr('viewBox') === void 0) {
+		if ($root.attr('viewBox') === undefined) {
 			$root.attr(
 				'viewBox',
-				box.left + ' ' + box.top + ' ' + box.width + ' ' + box.height
+				`${box.left} ${box.top} ${box.width} ${box.height}`
 			);
 		}
 
 		// Add missing width/height
-		if ($root.attr('width') === void 0) {
-			$root.attr('width', box.width + '');
+		if ($root.attr('width') === undefined) {
+			$root.attr('width', box.width.toString());
 		}
-		if ($root.attr('height') === void 0) {
-			$root.attr('height', box.height + '');
+		if ($root.attr('height') === undefined) {
+			$root.attr('height', box.height.toString());
 		}
 
 		return this.$svg.html();
@@ -53,18 +81,49 @@ export class SVG {
 	/**
 	 * Get SVG as string without whitespaces
 	 */
-	toMinifiedString(): string {
-		return this.toString().replace(/\s*\n\s*/g, '');
+	toMinifiedString(customisations?: IconifyIconCustomisations): string {
+		return trimSVG(this.toString(customisations));
+	}
+
+	/**
+	 * Get SVG as string with whitespaces
+	 */
+	toPrettyString(customisations?: IconifyIconCustomisations): string {
+		const str = this.toMinifiedString(customisations);
+		return prettifySVG(str) ?? str;
 	}
 
 	/**
 	 * Get body
 	 */
 	getBody(): string {
-		// eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-		return this.$svg('svg')
-			.html()!
-			.replace(/\s*\n\s*/g, '');
+		// Make sure icon has no attributes on <svg> that affect content
+		const $root = this.$svg(':root');
+		const attribs = ($root.get(0) as CheerioElement).attribs;
+		for (const key in attribs) {
+			switch (key.split('-').shift()) {
+				case 'fill':
+				case 'stroke':
+				case 'opacity':
+					throw new Error(
+						`Cannot use getBody() on icon that was not cleaned up with cleanupSVGRoot(). Icon has attribute ${key}="${attribs[key]}"`
+					);
+			}
+		}
+
+		return trimSVG(this.$svg('svg').html() as string);
+	}
+
+	/**
+	 * Get icon as IconifyIcon
+	 */
+	getIcon(): IconifyIcon {
+		const props: CommonIconProps = this.viewBox;
+		const body = this.getBody();
+		return {
+			...props,
+			body,
+		};
 	}
 
 	/**
@@ -110,19 +169,23 @@ export class SVG {
 
 		// Load content
 		this.$svg = cheerio.load(content.trim(), {
+			// @ts-expect-error Legacy attribute, kept because Cheerio types are a unstable
 			lowerCaseAttributeNames: false,
 			xmlMode: true,
 		});
 
 		// Check root
 		const $root = this.$svg(':root');
-		if ($root.length > 1 || $root.get(0).tagName !== 'svg') {
+		if (
+			$root.length > 1 ||
+			($root.get(0) as CheerioElement).tagName !== 'svg'
+		) {
 			throw new Error('Invalid SVG file: bad root tag');
 		}
 
 		// Get dimensions and origin
 		const viewBox = $root.attr('viewBox');
-		if (viewBox !== void 0) {
+		if (viewBox !== undefined) {
 			const list = viewBox.split(' ');
 
 			this.viewBox = {

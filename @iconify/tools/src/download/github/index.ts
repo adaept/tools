@@ -8,15 +8,15 @@ import { getGitHubRepoHash } from './hash';
 import type { GitHubAPIOptions } from './types';
 import { downloadFile } from '../api/download';
 import { unzip } from '../helpers/unzip';
-// import { sendAPIQuery } from '../api';
+import type { DownloadSourceMixin } from '../types/sources';
 
 interface IfModifiedSinceOption {
 	// Download only if it was modified since hash
-	ifModifiedSince: string;
+	ifModifiedSince: string | DownloadGitHubRepoResult;
 }
 
 /**
- * Options for downloadGitRepo()
+ * Options for downloadGitHubRepo()
  */
 export interface DownloadGitHubRepoOptions
 	extends ExportTargetOptions,
@@ -35,9 +35,10 @@ export interface DownloadGitHubRepoOptions
 /**
  * Result
  */
-export interface DownloadGitHubRepoResult {
+export interface DownloadGitHubRepoResult
+	extends DownloadSourceMixin<'github'> {
 	rootDir: string;
-	actualDir: string;
+	contentsDir: string;
 	hash: string;
 }
 
@@ -59,7 +60,7 @@ async function findMatchingDirs(
 		) {
 			continue;
 		}
-		const stat = await fs.lstat(rootDir + '/' + file);
+		const stat = await fs.stat(rootDir + '/' + file);
 		if (stat.isDirectory()) {
 			matches.push(file);
 		}
@@ -82,8 +83,17 @@ export async function downloadGitHubRepo(
 	// Check for last commit
 	const hash = await getGitHubRepoHash(options);
 
-	if (options.ifModifiedSince && hash === options.ifModifiedSince) {
-		return 'not_modified';
+	const ifModifiedSince = options.ifModifiedSince;
+	if (ifModifiedSince) {
+		const expectedHash: string | null =
+			typeof ifModifiedSince === 'string'
+				? ifModifiedSince
+				: ifModifiedSince.downloadType === 'github'
+				? ifModifiedSince.hash
+				: null;
+		if (hash === expectedHash) {
+			return 'not_modified';
+		}
 	}
 
 	// Replace hash in target
@@ -98,7 +108,7 @@ export async function downloadGitHubRepo(
 	// Check if archive exists
 	let exists = false;
 	try {
-		const stat = await fs.lstat(archiveTarget);
+		const stat = await fs.stat(archiveTarget);
 		exists = stat.isFile();
 	} catch (err) {
 		//
@@ -132,6 +142,8 @@ export async function downloadGitHubRepo(
 		const stat = await fs.lstat(filename);
 		const isDir = stat.isDirectory();
 		if (
+			// Remove symbolic links
+			stat.isSymbolicLink() ||
 			// Remove if directory matches hash to avoid errors extracting zip
 			(isDir && filename.slice(0 - hashSearch.length) === hashSearch) ||
 			// Remove if directory and cleanupOldDirectories is not disabled
@@ -158,11 +170,12 @@ export async function downloadGitHubRepo(
 	if (matchingDirs.length !== 1) {
 		throw new Error(`Error unpacking ${hash}.zip`);
 	}
-	const actualDir = rootDir + '/' + matchingDirs[0];
+	const contentsDir = rootDir + '/' + matchingDirs[0];
 
 	return {
+		downloadType: 'github',
 		rootDir,
-		actualDir,
+		contentsDir,
 		hash,
 	};
 }
