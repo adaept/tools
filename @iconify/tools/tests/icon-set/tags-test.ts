@@ -1,10 +1,10 @@
 import type { IconifyJSON } from '@iconify/types';
-import { IconSet } from '../../lib/icon-set';
+import { IconSet } from '../../src/icon-set/index.js';
 import {
 	addTagsToIconSet,
 	sizeTags,
 	paletteTags,
-} from '../../lib/icon-set/tags';
+} from '../../src/icon-set/tags.js';
 
 describe('Adding tags', () => {
 	test('Empty icon set', () => {
@@ -12,7 +12,7 @@ describe('Adding tags', () => {
 			prefix: 'foo',
 			icons: {
 				foo: {
-					body: '<g />',
+					body: '<g/>',
 					hidden: true,
 				},
 			},
@@ -26,16 +26,25 @@ describe('Adding tags', () => {
 	test('Square icons with same grid', () => {
 		const iconSetData: IconifyJSON = {
 			prefix: 'foo',
+			info: {
+				name: 'Test',
+				author: {
+					name: 'Test',
+				},
+				license: {
+					title: 'MIT',
+				},
+			},
 			icons: {
 				foo: {
-					body: '<g />',
+					body: '<g/>',
 				},
 				bar: {
-					body: '<g />',
+					body: '<g/>',
 				},
 				// Hidden icon
-				baz: {
-					body: '<g />',
+				hidden: {
+					body: '<g/>',
 					hidden: true,
 					width: 24,
 					height: 32,
@@ -46,6 +55,14 @@ describe('Adding tags', () => {
 
 		const tags = addTagsToIconSet(iconSet);
 		expect(tags).toEqual([`${sizeTags.gridPrefix}16`, sizeTags.square]);
+		expect(iconSet.export()).toEqual({
+			...iconSetData,
+			info: {
+				...iconSetData.info,
+				total: 2,
+				tags,
+			},
+		});
 	});
 
 	test('Icons with different width', () => {
@@ -53,12 +70,12 @@ describe('Adding tags', () => {
 			prefix: 'foo',
 			icons: {
 				foo: {
-					body: '<g />',
+					body: '<g/>',
 					width: 24,
 					height: 24,
 				},
 				bar: {
-					body: '<g />',
+					body: '<g/>',
 					width: 20,
 					height: 24,
 				},
@@ -85,12 +102,12 @@ describe('Adding tags', () => {
 			},
 			icons: {
 				foo: {
-					body: '<g />',
+					body: '<g/>',
 					width: 16,
 					height: 16,
 				},
 				bar: {
-					body: '<g />',
+					body: '<g/>',
 					width: 24,
 					height: 32,
 				},
@@ -117,12 +134,12 @@ describe('Adding tags', () => {
 			},
 			icons: {
 				foo: {
-					body: '<g />',
+					body: '<g/>',
 					width: 16,
 					height: 16,
 				},
 				bar: {
-					body: '<g />',
+					body: '<g/>',
 					width: 24,
 					height: 32,
 				},

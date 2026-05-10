@@ -11,10 +11,11 @@
 	},
 	"type": "module",
 	"dependencies": {
-		"@iconify/tools": "workspace:^"
+		"@iconify/tools": "workspace:^",
+		"@iconify/types": "^2.0.0"
 	},
 	"devDependencies": {
-		"@types/node": "^20.14.14",
-		"typescript": "^5.5.4"
+		"@types/node": "^24.12.0",
+		"typescript": "^5.9.3"
 	}
 }

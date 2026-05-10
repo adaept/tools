@@ -1,6 +1,6 @@
-import { SVG } from '../../lib/svg';
-import { cleanupSVG } from '../../lib/svg/cleanup';
-import { loadFixture } from '../../lib/tests/helpers';
+import { SVG } from '../../src/svg/index.js';
+import { cleanupSVG } from '../../src/svg/cleanup.js';
+import { loadFixture } from '../../src/tests/helpers.js';
 
 describe('Cleaning up SVG', () => {
 	test('Moving fill to content', () => {
@@ -33,7 +33,7 @@ describe('Cleaning up SVG', () => {
 		const svg = new SVG(await loadFixture('batch-asterisk.svg'));
 		cleanupSVG(svg);
 		expect(svg.toMinifiedString()).toBe(
-			'<svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 48 48"> <g fill="#000000"><path d="M 42.588,20.196C 41.058,21.078, 36.348,22.911, 32.034,24.00 c 4.314,1.089, 9.024,2.922, 10.557,3.804C 45.456,29.46, 46.44,33.129, 44.784,36.00c-1.656,2.871-5.325,3.852-8.193,2.196 c-1.533-0.885-5.475-4.053-8.574-7.245C 29.232,35.235, 30.00,40.233, 30.00,42.00c0.00,3.312-2.688,6.00-6.00,6.00s-6.00-2.688-6.00-6.00 c0.00-1.767, 0.768-6.765, 1.986-11.049c-3.099,3.192-7.041,6.36-8.574,7.245C 8.541,39.852, 4.872,38.871, 3.216,36.00S 2.541,29.46, 5.412,27.804 C 6.942,26.922, 11.652,25.089, 15.969,24.00C 11.652,22.911, 6.942,21.078, 5.412,20.196C 2.541,18.54, 1.56,14.871, 3.216,12.00s 5.325-3.852, 8.196-2.196 c 1.533,0.885, 5.475,4.053, 8.574,7.245C 18.768,12.765, 18.00,7.767, 18.00,6.00c0.00-3.312, 2.688-6.00, 6.00-6.00s 6.00,2.688, 6.00,6.00c0.00,1.767-0.768,6.765-1.986,11.049 c 3.099-3.192, 7.044-6.36, 8.574-7.245c 2.868-1.656, 6.54-0.675, 8.193,2.196C 46.44,14.871, 45.456,18.54, 42.588,20.196z"/></g></svg>'
+			'<svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 48 48"><g fill="#000000"><path d="M 42.588,20.196C 41.058,21.078, 36.348,22.911, 32.034,24.00 c 4.314,1.089, 9.024,2.922, 10.557,3.804C 45.456,29.46, 46.44,33.129, 44.784,36.00c-1.656,2.871-5.325,3.852-8.193,2.196 c-1.533-0.885-5.475-4.053-8.574-7.245C 29.232,35.235, 30.00,40.233, 30.00,42.00c0.00,3.312-2.688,6.00-6.00,6.00s-6.00-2.688-6.00-6.00 c0.00-1.767, 0.768-6.765, 1.986-11.049c-3.099,3.192-7.041,6.36-8.574,7.245C 8.541,39.852, 4.872,38.871, 3.216,36.00S 2.541,29.46, 5.412,27.804 C 6.942,26.922, 11.652,25.089, 15.969,24.00C 11.652,22.911, 6.942,21.078, 5.412,20.196C 2.541,18.54, 1.56,14.871, 3.216,12.00s 5.325-3.852, 8.196-2.196 c 1.533,0.885, 5.475,4.053, 8.574,7.245C 18.768,12.765, 18.00,7.767, 18.00,6.00c0.00-3.312, 2.688-6.00, 6.00-6.00s 6.00,2.688, 6.00,6.00c0.00,1.767-0.768,6.765-1.986,11.049 c 3.099-3.192, 7.044-6.36, 8.574-7.245c 2.868-1.656, 6.54-0.675, 8.193,2.196C 46.44,14.871, 45.456,18.54, 42.588,20.196z"/></g></svg>'
 		);
 	});
 
@@ -78,7 +78,7 @@ describe('Cleaning up SVG', () => {
 		const svg = new SVG(await loadFixture('bpmn-trash.svg'));
 		cleanupSVG(svg);
 		expect(svg.toMinifiedString()).toBe(
-			'<svg xmlns="http://www.w3.org/2000/svg" width="2048" height="2048" viewBox="0 0 2048 2048"><defs></defs><g id="layer1" transform="translate(0,995.63783)"><g transform="matrix(96.752895,0,0,96.752895,55.328158,-100816.34)" id="layer1-6" display="inline"><path d="m 3.4296875,1038.3672 1.3325877,12.7308 10.5912408,0 1.228186,-12.7284 -13.1520736,0 z m 1.4921875,1.3437 10.185547,0 -0.972656,10.0411 -8.1582035,0 z" id="rect4089" color="#000000" display="inline" visibility="visible" opacity="1" color-interpolation="sRGB" fill="#000000" fill-opacity="1" fill-rule="nonzero" stroke="none" stroke-width="1.343629" stroke-linecap="round" stroke-linejoin="miter" stroke-miterlimit="4" stroke-dasharray="none" stroke-dashoffset="0" stroke-opacity="1" color-rendering="auto"/><g id="g4275" transform="matrix(1,0,0,0.90111263,0,103.41515)"><path id="path4092" d="m 7.0333918,1040.9794 0.9432241,7.504" fill="none" stroke="#000000" stroke-width="1.343629" stroke-linecap="round" stroke-linejoin="miter" stroke-miterlimit="4" stroke-opacity="1" stroke-dasharray="none"/><path id="path4092-2" d="m 12.990235,1040.9794 -0.943224,7.504" fill="none" stroke="#000000" stroke-width="1.343629" stroke-linecap="round" stroke-linejoin="miter" stroke-miterlimit="4" stroke-opacity="1" stroke-dasharray="none"/></g><path d="m 7.2638322,1035.194 -4.2854023,1.2542 0,0.6276 14.0667651,0 0,-0.6276 -4.337726,-1.2542 z" id="rect4121" fill="#000000" fill-opacity="1" stroke="none"/><path d="m 7.6269598,1033.8929 4.7697062,0 0,1.737 -4.7697062,0 z" id="rect4121-6" display="inline" fill="#000000" fill-opacity="1" stroke="#000000" stroke-width="0.72291225" stroke-linecap="round" stroke-linejoin="round" stroke-miterlimit="4" stroke-dasharray="none" stroke-dashoffset="0" stroke-opacity="1"/></g></g></svg>'
+			'<svg xmlns="http://www.w3.org/2000/svg" width="2048" height="2048" viewBox="0 0 2048 2048"><defs/><g id="layer1" transform="translate(0,995.63783)"><g transform="matrix(96.752895,0,0,96.752895,55.328158,-100816.34)" id="layer1-6" display="inline"><path d="m 3.4296875,1038.3672 1.3325877,12.7308 10.5912408,0 1.228186,-12.7284 -13.1520736,0 z m 1.4921875,1.3437 10.185547,0 -0.972656,10.0411 -8.1582035,0 z" id="rect4089" color="#000000" display="inline" visibility="visible" opacity="1" color-interpolation="sRGB" fill="#000000" fill-opacity="1" fill-rule="nonzero" stroke="none" stroke-width="1.343629" stroke-linecap="round" stroke-linejoin="miter" stroke-miterlimit="4" stroke-dasharray="none" stroke-dashoffset="0" stroke-opacity="1" color-rendering="auto"/><g id="g4275" transform="matrix(1,0,0,0.90111263,0,103.41515)"><path id="path4092" d="m 7.0333918,1040.9794 0.9432241,7.504" fill="none" stroke="#000000" stroke-width="1.343629" stroke-linecap="round" stroke-linejoin="miter" stroke-miterlimit="4" stroke-opacity="1" stroke-dasharray="none"/><path id="path4092-2" d="m 12.990235,1040.9794 -0.943224,7.504" fill="none" stroke="#000000" stroke-width="1.343629" stroke-linecap="round" stroke-linejoin="miter" stroke-miterlimit="4" stroke-opacity="1" stroke-dasharray="none"/></g><path d="m 7.2638322,1035.194 -4.2854023,1.2542 0,0.6276 14.0667651,0 0,-0.6276 -4.337726,-1.2542 z" id="rect4121" fill="#000000" fill-opacity="1" stroke="none"/><path d="m 7.6269598,1033.8929 4.7697062,0 0,1.737 -4.7697062,0 z" id="rect4121-6" display="inline" fill="#000000" fill-opacity="1" stroke="#000000" stroke-width="0.72291225" stroke-linecap="round" stroke-linejoin="round" stroke-miterlimit="4" stroke-dasharray="none" stroke-dashoffset="0" stroke-opacity="1"/></g></g></svg>'
 		);
 	});
 
@@ -125,27 +125,15 @@ describe('Cleaning up SVG', () => {
 	});
 
 	test('font-face.svg', async () => {
-		// Intercept console.warn
-		const warn = console.warn;
+		let threwError = false;
 		try {
-			let warned = false;
-			console.warn = () => {
-				warned = true;
-			};
-
 			const content = await loadFixture('font-face.svg');
 			const svg = new SVG(content);
 			cleanupSVG(svg);
-			expect(
-				svg.toMinifiedString().replace('<defs></defs>', '<defs/>')
-			).toBe(
-				'<svg viewBox="0 0 1024 1024" xmlns="http://www.w3.org/2000/svg" width="200" height="200"><defs/><path d="M393.142857 548.571429A82.285714 82.285714 0 0 1 475.428571 630.857143v201.142857A82.285714 82.285714 0 0 1 393.142857 914.285714h-201.142857A82.285714 82.285714 0 0 1 109.714286 832v-201.142857A82.285714 82.285714 0 0 1 192 548.571429h201.142857z m438.857143 0A82.285714 82.285714 0 0 1 914.285714 630.857143v201.142857A82.285714 82.285714 0 0 1 832 914.285714h-201.142857A82.285714 82.285714 0 0 1 548.571429 832v-201.142857A82.285714 82.285714 0 0 1 630.857143 548.571429h201.142857z m-438.857143 54.857142h-201.142857a27.428571 27.428571 0 0 0-27.428571 27.428572v201.142857c0 15.140571 12.288 27.428571 27.428571 27.428571h201.142857a27.428571 27.428571 0 0 0 27.428572-27.428571v-201.142857a27.428571 27.428571 0 0 0-27.428572-27.428572z m438.857143 0h-201.142857a27.428571 27.428571 0 0 0-27.428572 27.428572v201.142857c0 15.140571 12.288 27.428571 27.428572 27.428571h201.142857a27.428571 27.428571 0 0 0 27.428571-27.428571v-201.142857a27.428571 27.428571 0 0 0-27.428571-27.428572zM393.142857 109.714286A82.285714 82.285714 0 0 1 475.428571 192v201.142857A82.285714 82.285714 0 0 1 393.142857 475.428571h-201.142857A82.285714 82.285714 0 0 1 109.714286 393.142857v-201.142857A82.285714 82.285714 0 0 1 192 109.714286h201.142857z m438.857143 0A82.285714 82.285714 0 0 1 914.285714 192v201.142857A82.285714 82.285714 0 0 1 832 475.428571h-201.142857A82.285714 82.285714 0 0 1 548.571429 393.142857v-201.142857A82.285714 82.285714 0 0 1 630.857143 109.714286h201.142857z m-438.857143 54.857143h-201.142857a27.428571 27.428571 0 0 0-27.428571 27.428571v201.142857c0 15.140571 12.288 27.428571 27.428571 27.428572h201.142857a27.428571 27.428571 0 0 0 27.428572-27.428572v-201.142857a27.428571 27.428571 0 0 0-27.428572-27.428571z m438.857143 0h-201.142857a27.428571 27.428571 0 0 0-27.428572 27.428571v201.142857c0 15.140571 12.288 27.428571 27.428572 27.428572h201.142857a27.428571 27.428571 0 0 0 27.428571-27.428572v-201.142857a27.428571 27.428571 0 0 0-27.428571-27.428571z"/></svg>'
-			);
-
-			expect(warned).toBe(true);
-		} finally {
-			console.warn = warn;
+		} catch {
+			threwError = true;
 		}
+		expect(threwError).toBe(true);
 	});
 
 	test('Icon with mask-type', async () => {
@@ -233,6 +221,16 @@ describe('Cleaning up SVG', () => {
 
 		expect(svg.toMinifiedString()).toBe(
 			'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="24" height="24"><title>TEST</title><g fill="none" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4"/></g></svg>'
+		);
+	});
+
+	test('Style with P3 color', () => {
+		const svg = new SVG(
+			`<svg xmlns="http://www.w3.org/2000/svg" width="50" height="72" fill="none" viewBox="0 0 50 72"><path fill="#fa5d19" d="M41.715 23.193c-2.762.82-4.844 2.675-6.37 4.69-.327.432-1.01.107-.88-.423 2.92-12.007-.937-21.986-12.961-26.898a.803.803 0 0 0-1.085.937c5.47 21.961-17.537 20.109-14.63 45.005.05.427-.43.72-.78.47-1.09-.782-2.307-2.415-3.142-3.562a.502.502 0 0 0-.887.16c-.665 2.404-.98 4.67-.98 6.92 0 8.749 4.497 16.45 11.304 20.915.39.255.89-.11.758-.557a13.5 13.5 0 0 1-.563-3.697c0-.788.05-1.593.173-2.343.285-1.885.94-3.68 2.04-5.314 3.772-5.663 11.334-11.132 10.127-18.56-.078-.47.477-.78.827-.457 5.328 4.868 6.383 11.415 5.508 17.287-.075.51.564.782.887.382a11.6 11.6 0 0 1 2.892-2.587c.27-.168.63-.04.733.26.602 1.752 1.497 3.397 2.342 5.042a13.46 13.46 0 0 1 .905 9.982.502.502 0 0 0 .755.57C45.5 66.95 50 59.248 50 50.494c0-3.043-.532-6.025-1.54-8.82-2.112-5.862-7.472-10.264-6.117-17.904.065-.365-.273-.682-.628-.577" style="fill:#fa5d19;fill:color(display-p3 .9816 .3634 .0984);fill-opacity:1"/></svg>`
+		);
+		cleanupSVG(svg);
+		expect(svg.toMinifiedString()).toBe(
+			'<svg xmlns="http://www.w3.org/2000/svg" width="50" height="72" viewBox="0 0 50 72"><g fill="none"><path fill="#fa5d19" d="M41.715 23.193c-2.762.82-4.844 2.675-6.37 4.69-.327.432-1.01.107-.88-.423 2.92-12.007-.937-21.986-12.961-26.898a.803.803 0 0 0-1.085.937c5.47 21.961-17.537 20.109-14.63 45.005.05.427-.43.72-.78.47-1.09-.782-2.307-2.415-3.142-3.562a.502.502 0 0 0-.887.16c-.665 2.404-.98 4.67-.98 6.92 0 8.749 4.497 16.45 11.304 20.915.39.255.89-.11.758-.557a13.5 13.5 0 0 1-.563-3.697c0-.788.05-1.593.173-2.343.285-1.885.94-3.68 2.04-5.314 3.772-5.663 11.334-11.132 10.127-18.56-.078-.47.477-.78.827-.457 5.328 4.868 6.383 11.415 5.508 17.287-.075.51.564.782.887.382a11.6 11.6 0 0 1 2.892-2.587c.27-.168.63-.04.733.26.602 1.752 1.497 3.397 2.342 5.042a13.46 13.46 0 0 1 .905 9.982.502.502 0 0 0 .755.57C45.5 66.95 50 59.248 50 50.494c0-3.043-.532-6.025-1.54-8.82-2.112-5.862-7.472-10.264-6.117-17.904.065-.365-.273-.682-.628-.577" fill-opacity="1"/></g></svg>'
 		);
 	});
 });

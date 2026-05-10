@@ -1,7 +1,7 @@
 import type { IconifyIcon, IconifyJSON } from '@iconify/types';
 import { getIconData } from '@iconify/utils/lib/icon-set/get-icon';
-import { IconSet } from '../../lib/icon-set';
-import type { ResolvedIconifyIcon } from '../../lib/icon-set/types';
+import { IconSet } from '../../src/icon-set/index.js';
+import type { ResolvedIconifyIcon } from '../../src/icon-set/types.js';
 
 describe('Working with aliases', () => {
 	test('Resolving aliases', () => {
@@ -9,13 +9,13 @@ describe('Working with aliases', () => {
 			prefix: 'foo',
 			icons: {
 				bar: {
-					body: '<g id="bar" />',
+					body: '<g id="bar"/>',
 					// Default values
 					width: 16,
 					height: 16,
 				},
-				baz: {
-					body: '<g id="baz" />',
+				TestIcon: {
+					body: '<g id="TestIcon"/>',
 					width: 24,
 					height: 24,
 				},
@@ -26,8 +26,8 @@ describe('Working with aliases', () => {
 					parent: 'bar',
 				},
 				// Variation: has transformation
-				variation1: {
-					parent: 'baz',
+				variation_1: {
+					parent: 'TestIcon',
 					hFlip: true,
 				},
 				// No parent icon
@@ -58,12 +58,12 @@ describe('Working with aliases', () => {
 		const iconSet = new IconSet(iconSetData);
 
 		// List all icons
-		expect(iconSet.list()).toEqual(['bar', 'baz', 'variation1']);
+		expect(iconSet.list()).toEqual(['bar', 'TestIcon', 'variation_1']);
 		expect(iconSet.count()).toBe(3);
 
 		// Resolve aliases
 		const expectedBar: ResolvedIconifyIcon = {
-			body: '<g id="bar" />',
+			body: '<g id="bar"/>',
 		};
 		expect(iconSet.resolve('bar')).toEqual(expectedBar);
 		expect(iconSet.resolve('alias1')).toEqual(expectedBar);
@@ -74,14 +74,14 @@ describe('Working with aliases', () => {
 		expect(iconSet.resolve('alias6')).toEqual(expectedBar);
 		expect(iconSet.resolve('alias7')).toEqual(expectedBar);
 
-		const expectedBaz: ResolvedIconifyIcon = {
-			body: '<g id="baz" />',
+		const expectedTestIcon: ResolvedIconifyIcon = {
+			body: '<g id="TestIcon"/>',
 			width: 24,
 			height: 24,
 		};
-		expect(iconSet.resolve('baz')).toEqual(expectedBaz);
-		expect(iconSet.resolve('variation1')).toEqual({
-			...expectedBaz,
+		expect(iconSet.resolve('TestIcon')).toEqual(expectedTestIcon);
+		expect(iconSet.resolve('variation_1')).toEqual({
+			...expectedTestIcon,
 			hFlip: true,
 		});
 
@@ -99,7 +99,7 @@ describe('Working with aliases', () => {
 			prefix: 'foo',
 			icons: {
 				test: {
-					body: '<g />',
+					body: '<g/>',
 				},
 			},
 			aliases: {
@@ -136,7 +136,7 @@ describe('Working with aliases', () => {
 
 		// Resolve aliases
 		const expectedIcon: IconifyIcon = {
-			body: '<g />',
+			body: '<g/>',
 		};
 
 		// Test both resolve() from IconSet and getIconData() from Utils to make sure both generate identical results
@@ -174,13 +174,13 @@ describe('Working with aliases', () => {
 			prefix: 'foo',
 			icons: {
 				bar: {
-					body: '<g id="bar" />',
+					body: '<g id="bar"/>',
 					// Default values
 					width: 16,
 					height: 16,
 				},
-				baz: {
-					body: '<g id="baz" />',
+				TestIcon: {
+					body: '<g id="TestIcon"/>',
 					width: 24,
 					height: 24,
 					hidden: true,
@@ -192,8 +192,8 @@ describe('Working with aliases', () => {
 					parent: 'bar',
 				},
 				// Variation: has transformation
-				variation1: {
-					parent: 'baz',
+				variation_1: {
+					parent: 'TestIcon',
 					hFlip: true,
 				},
 				// No parent icon
@@ -205,20 +205,20 @@ describe('Working with aliases', () => {
 		const iconSet = new IconSet(iconSetData);
 
 		// List all icons
-		expect(iconSet.list()).toEqual(['bar', 'baz', 'variation1']);
+		expect(iconSet.list()).toEqual(['bar', 'TestIcon', 'variation_1']);
 		expect(iconSet.count()).toBe(1);
 
 		expect(iconSet.exists('alias1')).toBe(true);
-		expect(iconSet.exists('baz')).toBe(true);
-		expect(iconSet.exists('variation1')).toBe(true);
+		expect(iconSet.exists('TestIcon')).toBe(true);
+		expect(iconSet.exists('variation_1')).toBe(true);
 
 		// Test removing icon and its variation
-		// Remove 'baz' + 'variation1'
-		expect(iconSet.remove('baz')).toBe(2);
+		// Remove 'TestIcon' + 'variation_1'
+		expect(iconSet.remove('TestIcon')).toBe(2);
 
 		expect(iconSet.exists('alias1')).toBe(true);
-		expect(iconSet.exists('baz')).toBe(false);
-		expect(iconSet.exists('variation1')).toBe(false);
+		expect(iconSet.exists('TestIcon')).toBe(false);
+		expect(iconSet.exists('variation_1')).toBe(false);
 	});
 
 	test('Rename icon, test characters and categories', () => {
@@ -228,13 +228,13 @@ describe('Working with aliases', () => {
 			lastModified,
 			icons: {
 				bar: {
-					body: '<g id="bar" />',
+					body: '<g id="bar"/>',
 					// Default values
 					width: 16,
 					height: 16,
 				},
-				baz: {
-					body: '<g id="baz" />',
+				TestIcon: {
+					body: '<g id="TestIcon"/>',
 					width: 24,
 					height: 24,
 					hidden: true,
@@ -246,8 +246,8 @@ describe('Working with aliases', () => {
 					parent: 'bar',
 				},
 				// Variation: has transformation
-				variation1: {
-					parent: 'baz',
+				variation_1: {
+					parent: 'TestIcon',
 					hFlip: true,
 				},
 				// No parent icon
@@ -257,47 +257,47 @@ describe('Working with aliases', () => {
 			},
 			chars: {
 				f00: 'bar',
-				f01: 'baz',
+				f01: 'TestIcon',
 				f02: 'alias1',
-				f03: 'variation1',
+				f03: 'variation_1',
 			},
 			categories: {
-				'To Rename': ['baz'],
-				'Other': ['bar', 'variation1', 'no-such-icon'],
+				'To Rename': ['TestIcon'],
+				'Other': ['bar', 'variation_1', 'no-such-icon'],
 				'Empty': ['no-such-icon'],
 			},
 		};
 		const iconSet = new IconSet(iconSetData);
 
 		// List all icons
-		expect(iconSet.list()).toEqual(['bar', 'baz', 'variation1']);
+		expect(iconSet.list()).toEqual(['bar', 'TestIcon', 'variation_1']);
 		expect(iconSet.count()).toBe(1);
 
 		expect(iconSet.exists('alias1')).toBe(true);
-		expect(iconSet.exists('baz')).toBe(true);
-		expect(iconSet.exists('variation1')).toBe(true);
+		expect(iconSet.exists('TestIcon')).toBe(true);
+		expect(iconSet.exists('variation_1')).toBe(true);
 		expect(iconSet.exists('foo')).toBe(false);
 		expect(iconSet.lastModified).toBe(lastModified);
 
-		// Rename 'baz' to 'foo'
-		expect(iconSet.rename('baz', 'foo')).toBe(true);
+		// Rename 'TestIcon' to 'foo'
+		expect(iconSet.rename('TestIcon', 'foo')).toBe(true);
 
 		// Make sure it was renamed and other icons were not affected
 		expect(iconSet.exists('alias1')).toBe(true);
-		expect(iconSet.exists('baz')).toBe(false);
-		expect(iconSet.exists('variation1')).toBe(true);
+		expect(iconSet.exists('TestIcon')).toBe(false);
+		expect(iconSet.exists('variation_1')).toBe(true);
 		expect(iconSet.exists('foo')).toBe(true);
 		expect(iconSet.lastModified).not.toBe(lastModified);
 
-		const expectedBaz: ResolvedIconifyIcon = {
-			body: '<g id="baz" />',
+		const expectedTestIcon: ResolvedIconifyIcon = {
+			body: '<g id="TestIcon"/>',
 			width: 24,
 			height: 24,
 			hidden: true,
 		};
-		expect(iconSet.resolve('foo')).toEqual(expectedBaz);
-		expect(iconSet.resolve('variation1')).toEqual({
-			...expectedBaz,
+		expect(iconSet.resolve('foo')).toEqual(expectedTestIcon);
+		expect(iconSet.resolve('variation_1')).toEqual({
+			...expectedTestIcon,
 			hFlip: true,
 		});
 
@@ -307,10 +307,10 @@ describe('Working with aliases', () => {
 			lastModified: iconSet.lastModified,
 			icons: {
 				bar: {
-					body: '<g id="bar" />',
+					body: '<g id="bar"/>',
 				},
 				foo: {
-					body: '<g id="baz" />',
+					body: '<g id="TestIcon"/>',
 					width: 24,
 					height: 24,
 					hidden: true,
@@ -320,7 +320,7 @@ describe('Working with aliases', () => {
 				alias1: {
 					parent: 'bar',
 				},
-				variation1: {
+				variation_1: {
 					parent: 'foo',
 					hFlip: true,
 				},
@@ -333,10 +333,10 @@ describe('Working with aliases', () => {
 				f00: 'bar',
 				f01: 'foo',
 				f02: 'alias1',
-				f03: 'variation1',
+				f03: 'variation_1',
 			},
 			categories: {
-				// 'foo' and 'variation1' are hidden, 'no-such-icon' does not exist
+				// 'foo' and 'variation_1' are hidden, 'no-such-icon' does not exist
 				Other: ['bar'],
 			},
 		};
@@ -354,10 +354,10 @@ describe('Working with aliases', () => {
 			lastModified,
 			icons: {
 				bar: {
-					body: '<g id="bar" />',
+					body: '<g id="bar"/>',
 				},
-				baz: {
-					body: '<g id="baz" />',
+				TestIcon: {
+					body: '<g id="TestIcon"/>',
 				},
 			},
 			aliases: {
@@ -366,16 +366,16 @@ describe('Working with aliases', () => {
 					parent: 'bar',
 				},
 				// Variation: has transformation
-				variation1: {
-					parent: 'baz',
+				variation_1: {
+					parent: 'TestIcon',
 					hFlip: true,
 				},
 			},
 			categories: {
 				Bar: ['bar'],
-				Baz: ['baz'],
+				TestIcon: ['TestIcon'],
 				// Ignored: aliases cannot have categories
-				Other: ['alias1', 'variation1'],
+				Other: ['alias1', 'variation_1'],
 			},
 		};
 		const iconSet = new IconSet(iconSetData);
@@ -386,10 +386,10 @@ describe('Working with aliases', () => {
 			lastModified,
 			icons: {
 				bar: {
-					body: '<g id="bar" />',
+					body: '<g id="bar"/>',
 				},
-				baz: {
-					body: '<g id="baz" />',
+				TestIcon: {
+					body: '<g id="TestIcon"/>',
 				},
 			},
 			aliases: {
@@ -398,14 +398,14 @@ describe('Working with aliases', () => {
 					parent: 'bar',
 				},
 				// Variation: has transformation
-				variation1: {
-					parent: 'baz',
+				variation_1: {
+					parent: 'TestIcon',
 					hFlip: true,
 				},
 			},
 			categories: {
 				Bar: ['bar'],
-				Baz: ['baz'],
+				TestIcon: ['TestIcon'],
 			},
 		};
 		expect(iconSet.export(false)).toEqual(iconSetExportedData);

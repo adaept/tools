@@ -1,11 +1,10 @@
-/* eslint-disable @typescript-eslint/no-non-null-assertion */
-import { SVG } from '../../lib/svg';
-import { analyseSVGStructure } from '../../lib/svg/analyse';
+import { SVG } from '../../src/svg/index.js';
+import { analyseSVGStructure } from '../../src/svg/analyse.js';
 import type {
 	AnalyseSVGStructureResult,
 	LinkToElementWithID,
 	ElementsTreeItem,
-} from '../../lib/svg/analyse/types';
+} from '../../src/svg/analyse/types.js';
 
 /**
  * Generate data to test `ids` property
@@ -23,7 +22,7 @@ function mapIDsToTags(
 		const index = data.ids[id];
 		const element = data.elements.get(index)!;
 		const item: MappedIDs = {
-			tagName: element.tagName,
+			tagName: element.tag,
 			usedAsMask: element._usedAsMask,
 			usedAsPaint: element._usedAsPaint,
 		};
@@ -44,7 +43,7 @@ function mapUses(data: AnalyseSVGStructureResult): MappedUses[] {
 		const { usedByIndex, ...other } = item;
 		return {
 			...other,
-			usedByTagName: elements.get(usedByIndex)!.tagName,
+			usedByTagName: elements.get(usedByIndex)!.tag,
 		};
 	});
 }
@@ -67,7 +66,7 @@ function mapElements(data: AnalyseSVGStructureResult): MappedElements[] {
 	const elements = data.elements;
 	elements.forEach((item) => {
 		const {
-			tagName,
+			tag: tagName,
 			_id,
 			_usedAsMask,
 			_usedAsPaint,
@@ -80,11 +79,11 @@ function mapElements(data: AnalyseSVGStructureResult): MappedElements[] {
 			tagName,
 		};
 		if (_parentElement !== void 0) {
-			result.parentTagName = elements.get(_parentElement)!.tagName;
+			result.parentTagName = elements.get(_parentElement)!.tag;
 		}
 		if (_childElements) {
 			result.childTagNames = _childElements.map(
-				(index) => elements.get(index)!.tagName
+				(index) => elements.get(index)!.tag
 			);
 		}
 		if (typeof _id === 'string') {
@@ -123,14 +122,14 @@ function mapTree(data: AnalyseSVGStructureResult): MappedElementsTreeItem {
 	function map(tree: ElementsTreeItem): MappedElementsTreeItem {
 		const element = elements.get(tree.index)!;
 		const item: MappedElementsTreeItem = {
-			tagName: element.tagName,
+			tagName: element.tag,
 			usedAsMask: tree.usedAsMask,
 			children: tree.children.map(map),
 		};
 		if (tree.parent) {
 			const parentIndex = tree.parent.index;
 			const parentElement = elements.get(parentIndex)!;
-			item.parentTagName = parentElement.tagName;
+			item.parentTagName = parentElement.tag;
 		}
 		return item;
 	}

@@ -1,10 +1,10 @@
-import { promises as fs } from 'fs';
+import { readFile } from 'node:fs/promises';
 import {
 	downloadGitLabRepo,
 	DownloadGitLabRepoResult,
-} from '../../lib/download/gitlab';
-import { prepareDirectoryForExport } from '../../lib/export/helpers/prepare';
-import { isTestingRemote } from '../../lib/tests/helpers';
+} from '../../src/download/gitlab/index.js';
+import { prepareDirectoryForExport } from '../../src/export/helpers/prepare.js';
+import { isTestingRemote } from '../../src/tests/helpers.js';
 
 const target = 'cache/gitlab';
 
@@ -78,7 +78,7 @@ describe('Downloading Git repository using GitLav API', () => {
 
 		// Check contents of package.json
 		const packageContents = JSON.parse(
-			await fs.readFile(`${target}/${branch.subdir}/package.json`, 'utf8')
+			await readFile(`${target}/${branch.subdir}/package.json`, 'utf8')
 		) as Record<string, unknown>;
 		expect(packageContents.version).toBe(branch.version);
 	});
@@ -108,7 +108,7 @@ describe('Downloading Git repository using GitLav API', () => {
 
 		// Check contents of package.json
 		const packageContents = JSON.parse(
-			await fs.readFile(`${target}/${branch.subdir}/package.json`, 'utf8')
+			await readFile(`${target}/${branch.subdir}/package.json`, 'utf8')
 		) as Record<string, unknown>;
 		expect(packageContents.version).toBe(branch.version);
 	});

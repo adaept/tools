@@ -45,7 +45,7 @@ export interface DownloadNPMPackageResult extends DownloadSourceMixin<'npm'> {
  * Download NPM package
  */
 export async function downloadNPMPackage<
-	T extends IfModifiedSinceOption & DownloadNPMPackageOptions
+	T extends IfModifiedSinceOption & DownloadNPMPackageOptions,
 >(options: T): Promise<DownloadNPMPackageResult | DocumentNotModified>;
 export async function downloadNPMPackage(
 	options: DownloadNPMPackageOptions
@@ -85,7 +85,7 @@ export async function downloadNPMPackage(
 			if (version === expectedVersion) {
 				return 'not_modified';
 			}
-		} catch (err) {
+		} catch {
 			// Clean up on error
 			options.cleanup = true;
 		}
@@ -107,7 +107,7 @@ export async function downloadNPMPackage(
 	try {
 		const stat = await fs.stat(archiveTarget);
 		archiveExists = stat.isFile();
-	} catch (err) {
+	} catch {
 		//
 	}
 

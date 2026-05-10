@@ -29,13 +29,11 @@ type Callback<T> = (
 
 type AsyncCallback<T> = Callback<T | Promise<T>>;
 
-export type ScanDirectoryCallback = AsyncCallback<
-	ScanDirectoryCallbackStringResult | undefined
->;
+export type ScanDirectoryCallback =
+	AsyncCallback<ScanDirectoryCallbackStringResult>;
 
-export type ScanDirectorySyncCallback = Callback<
-	ScanDirectoryCallbackStringResult | undefined
->;
+export type ScanDirectorySyncCallback =
+	Callback<ScanDirectoryCallbackStringResult>;
 
 /**
  * Reusable functions
@@ -96,7 +94,13 @@ export async function scanDirectory(
 				continue;
 			}
 
-			const stat = await fs.stat(path + subdir + filename);
+			let stat: Stats;
+			try {
+				stat = await fs.stat(path + subdir + filename);
+			} catch {
+				// Failed
+				continue;
+			}
 			if (stat.isDirectory()) {
 				if (subdirs) {
 					await scan(subdir + filename + '/');
@@ -167,7 +171,13 @@ export function scanDirectorySync(
 				continue;
 			}
 
-			const stat = statSync(path + subdir + filename);
+			let stat: Stats;
+			try {
+				stat = statSync(path + subdir + filename);
+			} catch {
+				// Failed
+				continue;
+			}
 			if (stat.isDirectory()) {
 				if (subdirs) {
 					scan(subdir + filename + '/');

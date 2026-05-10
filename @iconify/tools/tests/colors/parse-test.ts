@@ -1,8 +1,9 @@
 import { stringToColor } from '@iconify/utils/lib/colors';
-import { SVG } from '../../lib/svg';
-import { parseColors, isEmptyColor } from '../../lib/colors/parse';
-import { removeBadAttributes } from '../../lib/svg/cleanup/attribs';
-import { loadFixture } from '../../lib/tests/helpers';
+import { SVG } from '../../src/svg/index.js';
+import { parseColors, isEmptyColor } from '../../src/colors/parse.js';
+import { removeBadAttributes } from '../../src/svg/cleanup/attribs.js';
+import { loadFixture } from '../../src/tests/helpers.js';
+import { trimSVG } from '@iconify/utils';
 
 describe('Finding colors', () => {
 	test('Icon without colors', () => {
@@ -148,8 +149,8 @@ describe('Finding colors', () => {
 				return !color
 					? colorStr
 					: isEmptyColor(color)
-					? color
-					: 'currentColor';
+						? color
+						: 'currentColor';
 			},
 		});
 		expect(replaceResult).toEqual({
@@ -275,8 +276,8 @@ describe('Finding colors', () => {
 			hasGlobalStyle: false,
 		});
 
-		// SVG should not have changed
-		expect(svg.toString()).toBe(svgCode);
+		// SVG should not have changed, except for minification
+		expect(svg.toMinifiedString()).toBe(trimSVG(svgCode));
 	});
 
 	test('None', () => {

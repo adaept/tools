@@ -34,7 +34,7 @@ import type {
 	ParentIconsList,
 	ParentIconsTree,
 } from '@iconify/utils/lib/icon-set/tree';
-import { mergeIconData } from '@iconify/utils';
+import { mergeIconData, trimSVG } from '@iconify/utils';
 
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 function assertNever(v: never) {
@@ -439,7 +439,7 @@ export class IconSet {
 			switch (item.type) {
 				case 'icon': {
 					const icon: ExtendedIconifyIcon = {
-						body: item.body,
+						body: trimSVG(item.body),
 						...item.props,
 					};
 					icons[name] = icon;
@@ -741,6 +741,10 @@ export class IconSet {
 	 * Rename icon
 	 */
 	rename(oldName: string, newName: string): boolean {
+		if (oldName === newName) {
+			return false;
+		}
+
 		const entries = this.entries;
 
 		// Remove existing item with new name

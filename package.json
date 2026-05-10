@@ -4,6 +4,7 @@
 	"author": "Vjacheslav Trushkin",
 	"license": "MIT",
 	"private": true,
+	"type": "module",
 	"bugs": "https://github.com/iconify/tools/issues",
 	"homepage": "https://github.com/iconify/tools",
 	"repository": {
@@ -15,7 +16,7 @@
 		"@debug/*",
 		"@iconify-demo/*"
 	],
-	"packageManager": "pnpm@9.6.0",
+	"packageManager": "pnpm@10.33.0",
 	"scripts": {
 		"build": "pnpm recursive run build",
 		"test": "pnpm recursive run test",

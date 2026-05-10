@@ -1,15 +1,16 @@
 import type { IconifyJSON } from '@iconify/types';
-import { promises as fs } from 'fs';
-import { exportJSONPackage } from '../../lib/export/json-package';
-import { IconSet } from '../../lib/icon-set';
-import { scanDirectory } from '../../lib/misc/scan';
+import { rm, lstat, readFile } from 'node:fs/promises';
+import { exportJSONPackage } from '../../src/export/json-package.js';
+import { IconSet } from '../../src/icon-set/index.js';
+import { scanDirectory } from '../../src/misc/scan.js';
+import { getTypesVersion } from '../../src/export/helpers/types-version.js';
 
 // Check if file or directory exists
 async function exists(filename: string): Promise<boolean> {
 	try {
-		const stat = await fs.lstat(filename);
+		const stat = await lstat(filename);
 		return stat.isFile() || stat.isDirectory();
-	} catch (err) {
+	} catch {
 		return false;
 	}
 }
@@ -40,11 +41,11 @@ describe('Exporting to JSON package', () => {
 
 		// Clean directory
 		try {
-			await fs.rm(targetDir, {
+			await rm(targetDir, {
 				recursive: true,
 				force: true,
 			});
-		} catch (err) {
+		} catch {
 			//
 		}
 		expect(await exists(targetDir)).toBe(false);
@@ -52,6 +53,7 @@ describe('Exporting to JSON package', () => {
 		// Export icon set
 		await exportJSONPackage(iconSet, {
 			target: targetDir,
+			wildcardTypesVersion: false,
 		});
 
 		// Make sure directory exists and list files
@@ -72,21 +74,25 @@ describe('Exporting to JSON package', () => {
 		// Check contents of icons.json
 		// No metadata or characters to check
 		const actualData = JSON.parse(
-			await fs.readFile(`${targetDir}/icons.json`, 'utf8')
+			await readFile(`${targetDir}/icons.json`, 'utf8')
 		) as IconifyJSON;
 		const expectedData = iconSet.export();
 		expect(actualData).toEqual(expectedData);
 
+		// Get types version
+		const typesVersion = await getTypesVersion();
+		expect(typesVersion).toMatch(/^\d+\.\d+\.\d+$/);
+
 		// Check package.json to make sure it uses wildcard
 		const packageContent = JSON.parse(
-			await fs.readFile(`${targetDir}/package.json`, 'utf8')
+			await readFile(`${targetDir}/package.json`, 'utf8')
 		) as Record<string, unknown>;
 		expect(packageContent['dependencies']).toEqual({
-			'@iconify/types': '*',
+			'@iconify/types': `^${typesVersion}`,
 		});
 
 		// Clean up
-		await fs.rm(targetDir, {
+		await rm(targetDir, {
 			recursive: true,
 			force: true,
 		});

@@ -1,11 +1,11 @@
 import type { IconifyInfo, IconifyJSON } from '@iconify/types';
-import { IconSet } from '../../lib/icon-set';
+import { IconSet } from '../../src/icon-set/index.js';
 import type {
 	IconSetIcon,
 	IconSetIconVariation,
 	ResolvedIconifyIcon,
-} from '../../lib/icon-set/types';
-import { loadFixture } from '../../lib/tests/helpers';
+} from '../../src/icon-set/types.js';
+import { loadFixture } from '../../src/tests/helpers.js';
 
 describe('Loading icon set', () => {
 	test('Simple icon set', () => {
@@ -15,10 +15,10 @@ describe('Loading icon set', () => {
 			lastModified,
 			icons: {
 				foo: {
-					body: '<g id="foo" />',
+					body: '<g id="foo"/>',
 				},
 				bar: {
-					body: '<g id="bar" />',
+					body: '<g id="bar"/>',
 				},
 			},
 			aliases: {
@@ -38,14 +38,14 @@ describe('Loading icon set', () => {
 		// Check entries
 		const foo: IconSetIcon = {
 			type: 'icon',
-			body: '<g id="foo" />',
+			body: '<g id="foo"/>',
 			props: {},
 			chars: new Set(),
 			categories: new Set(),
 		};
 		const bar: IconSetIcon = {
 			type: 'icon',
-			body: '<g id="bar" />',
+			body: '<g id="bar"/>',
 			props: {},
 			chars: new Set(),
 			categories: new Set(),
@@ -73,13 +73,13 @@ describe('Loading icon set', () => {
 
 		// Resolve icon
 		const expected: ResolvedIconifyIcon = {
-			body: '<g id="bar" />',
+			body: '<g id="bar"/>',
 		};
 		expect(iconSet.resolve('bar')).toEqual(expected);
 		expect(iconSet.resolve('bar', false)).toEqual(expected);
 
 		const expected2: ResolvedIconifyIcon = {
-			body: '<g id="foo" />',
+			body: '<g id="foo"/>',
 		};
 		expect(iconSet.resolve('foo')).toEqual(expected2);
 
@@ -89,10 +89,10 @@ describe('Loading icon set', () => {
 			lastModified,
 			icons: {
 				foo: {
-					body: '<g id="foo" />',
+					body: '<g id="foo"/>',
 				},
 				bar: {
-					body: '<g id="bar" />',
+					body: '<g id="bar"/>',
 				},
 			},
 			aliases: {
@@ -117,14 +117,14 @@ describe('Loading icon set', () => {
 			lastModified,
 			icons: {
 				'bar-32': {
-					body: '<g />',
+					body: '<g/>',
 					width: 32,
 					hFlip: true,
 					vFlip: false,
 					hidden: true,
 				},
 				'bar-20': {
-					body: '<g id="baz" />',
+					body: '<g id="baz"/>',
 					width: 20,
 					height: 20,
 					left: 0,
@@ -165,7 +165,7 @@ describe('Loading icon set', () => {
 		// Check entries
 		const bar32: IconSetIcon = {
 			type: 'icon',
-			body: '<g />',
+			body: '<g/>',
 			props: {
 				width: 32,
 				height: 24,
@@ -177,7 +177,7 @@ describe('Loading icon set', () => {
 		};
 		const bar20: IconSetIcon = {
 			type: 'icon',
-			body: '<g id="baz" />',
+			body: '<g id="baz"/>',
 			props: {
 				width: 20,
 				height: 20,
@@ -201,14 +201,14 @@ describe('Loading icon set', () => {
 
 		// Resolve icons
 		const expected1: ResolvedIconifyIcon = {
-			body: '<g />',
+			body: '<g/>',
 			width: 32,
 			height: 24,
 			hFlip: true,
 			hidden: true,
 		};
 		const expected1Full: Required<ResolvedIconifyIcon> = {
-			body: '<g />',
+			body: '<g/>',
 			width: 32,
 			height: 24,
 			left: 0,
@@ -219,7 +219,7 @@ describe('Loading icon set', () => {
 			hidden: true,
 		};
 		const expected2: ResolvedIconifyIcon = {
-			body: '<g id="baz" />',
+			body: '<g id="baz"/>',
 			width: 20,
 			height: 20,
 			rotate: 1,
@@ -235,14 +235,14 @@ describe('Loading icon set', () => {
 			lastModified,
 			icons: {
 				'bar-32': {
-					body: '<g />',
+					body: '<g/>',
 					width: 32,
 					height: 24,
 					hFlip: true,
 					hidden: true,
 				},
 				'bar-20': {
-					body: '<g id="baz" />',
+					body: '<g id="baz"/>',
 					width: 20,
 					height: 20,
 					rotate: 1,

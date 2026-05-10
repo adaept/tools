@@ -1,3 +1,4 @@
+import { stringifyXMLContent } from '@cyberalien/svg-utils';
 import type { SVG } from '.';
 import { parseInlineStyle } from '../css/parse';
 import { tokensToString } from '../css/parser/export';
@@ -22,13 +23,11 @@ interface ParseSVGStyleCallbackItemCommon {
 	prop: string;
 	value: string;
 }
-interface ParseSVGStyleCallbackItemInline
-	extends ParseSVGStyleCallbackItemCommon {
+interface ParseSVGStyleCallbackItemInline extends ParseSVGStyleCallbackItemCommon {
 	type: 'inline';
 	item: ParseSVGCallbackItem;
 }
-interface ParseSVGStyleCallbackItemGlobal
-	extends ParseSVGStyleCallbackItemCommon {
+interface ParseSVGStyleCallbackItemGlobal extends ParseSVGStyleCallbackItemCommon {
 	type: 'global';
 	token: CSSRuleToken;
 	selectors: string[];
@@ -37,19 +36,16 @@ interface ParseSVGStyleCallbackItemGlobal
 	nextTokens: CSSToken[];
 }
 
-interface ParseSVGStyleCallbackItemGlobalAtRule
-	extends ParseSVGStyleCallbackItemCommon {
+interface ParseSVGStyleCallbackItemGlobalAtRule extends ParseSVGStyleCallbackItemCommon {
 	token: CSSAtRuleToken;
 	childTokens: CSSToken[];
 	prevTokens: (CSSToken | null)[];
 	nextTokens: CSSToken[];
 }
-interface ParseSVGStyleCallbackItemGlobalGenericAtRule
-	extends ParseSVGStyleCallbackItemGlobalAtRule {
+interface ParseSVGStyleCallbackItemGlobalGenericAtRule extends ParseSVGStyleCallbackItemGlobalAtRule {
 	type: 'at-rule';
 }
-interface ParseSVGStyleCallbackItemGlobalKeyframesAtRule
-	extends ParseSVGStyleCallbackItemGlobalAtRule {
+interface ParseSVGStyleCallbackItemGlobalKeyframesAtRule extends ParseSVGStyleCallbackItemGlobalAtRule {
 	type: 'keyframes';
 	from: Record<string, string>;
 }
@@ -90,21 +86,27 @@ function assertNotOldCode(value: unknown) {
  */
 export function parseSVGStyle(svg: SVG, callback: ParseSVGStyleCallback): void {
 	parseSVG(svg, (item) => {
-		const tagName = item.tagName;
-		const $element = item.$element;
+		const node = item.node;
+		const tagName = node.tag;
 
 		// Parse <style> tag
 		function parseStyleItem() {
-			const content = $element.text();
-			if (typeof content !== 'string') {
-				$element.remove();
+			let content = stringifyXMLContent(node.children);
+			if (!content) {
+				item.removeNode = true;
 				return;
 			}
 
+			// Remove '<![CDATA['
+			content = content.replace('<![CDATA[', '').replace(']]>', '');
+
+			// Parse style
 			const tokens = getTokens(content);
 			if (!(tokens instanceof Array)) {
 				// Invalid style
-				throw new Error('Error parsing style');
+				throw new Error(
+					'Error parsing style. This parser can handle only basic CSS'
+				);
 			}
 
 			// Parse all tokens
@@ -316,10 +318,15 @@ export function parseSVGStyle(svg: SVG, callback: ParseSVGStyleCallback): void {
 
 				if (!tree.length) {
 					// Empty
-					$element.remove();
+					item.removeNode = true;
 				} else {
 					const newContent = tokensToString(tree);
-					item.$element.text('\n' + newContent);
+					node.children = [
+						{
+							type: 'text',
+							content: '\n' + newContent,
+						},
+					];
 				}
 			}
 		}
@@ -331,15 +338,15 @@ export function parseSVGStyle(svg: SVG, callback: ParseSVGStyleCallback): void {
 		}
 
 		// Parse style
-		const attribs = item.element.attribs;
-		if (attribs.style === undefined) {
+		const attribs = node.attribs;
+		if (!attribs.style || typeof attribs.style !== 'string') {
 			return;
 		}
 
 		const parsedStyle = parseInlineStyle(attribs.style);
 		if (parsedStyle === null) {
 			// Ignore style
-			$element.removeAttr('style');
+			delete attribs.style;
 			return;
 		}
 
@@ -371,9 +378,9 @@ export function parseSVGStyle(svg: SVG, callback: ParseSVGStyleCallback): void {
 				.map((key) => key + ':' + parsedStyle[key] + ';')
 				.join('');
 			if (!newStyle.length) {
-				$element.removeAttr('style');
+				delete attribs.style;
 			} else {
-				$element.attr('style', newStyle);
+				attribs.style = newStyle;
 			}
 		}
 	});
