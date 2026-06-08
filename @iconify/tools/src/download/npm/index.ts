@@ -1,14 +1,15 @@
-import { promises as fs } from 'fs';
+import fs from 'node:fs/promises';
 import {
-	ExportTargetOptions,
+	type ExportTargetOptions,
 	normalizeDir,
 	prepareDirectoryForExport,
-} from '../../export/helpers/prepare';
-import { downloadFile } from '../api/download';
-import { untar } from '../helpers/untar';
-import type { DocumentNotModified } from '../types/modified';
-import type { DownloadSourceMixin } from '../types/sources';
-import { getNPMVersion, getPackageVersion } from './version';
+} from '../../export/helpers/prepare.js';
+import { downloadFile } from '../api/download.js';
+import { untar } from '../helpers/untar.js';
+import type { DocumentNotModified } from '../types/modified.js';
+import type { DownloadSourceMixin } from '../types/sources.js';
+import { getNPMVersion, getPackageVersion } from './version.js';
+import type { NPMPackageOptions } from './types.js';
 
 interface IfModifiedSinceOption {
 	// Clone only if it was modified since version
@@ -20,14 +21,10 @@ interface IfModifiedSinceOption {
  * Options for downloadNPMPackage()
  */
 export interface DownloadNPMPackageOptions
-	extends ExportTargetOptions,
+	extends
+		NPMPackageOptions,
+		ExportTargetOptions,
 		Partial<IfModifiedSinceOption> {
-	// Package
-	package: string;
-
-	// Tag, default is 'latest'
-	tag?: string;
-
 	// Log commands
 	log?: boolean;
 }
